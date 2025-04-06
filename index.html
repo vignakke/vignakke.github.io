@@ -1,112 +1,1162 @@
 <!DOCTYPE html>
-
 <html lang="en">
-
 <head>
-<style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Portfolio Tracker</title>
+    <style>
+        :root {
+            --background: #101010;
+            --card-bg: #1c1c1c;
+            --card-hover: #252525;
+            --border: #2a2a2a;
+            --text: #e0e0e0;
+            --text-secondary: #9e9e9e;
+            --accent: #00d1b2;
+            --negative: #ff3860;
+            --positive: #00c853;
+            --primary-btn: #00d1b2;
+            --primary-btn-hover: #00c4a7;
+            --danger-btn: #ff3860;
+            --danger-btn-hover: #ff1f4b;
+            --input-focus: rgba(0, 209, 178, 0.2);
+        }
 
-*,
-*:before,
-*:after {
-  box-sizing: border-box;
-}
-body {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  width: 100vw;
-  height: 100vh;
-  margin:0;
-  padding:0;
-  background-image: url('https://images3.alphacoders.com/104/1049964.jpg');
-  background-size: cover;
-}
-@-webkit-keyframes float {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(-12px);
-  }
-}
-@keyframes float {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(-12px);
-  }
-}
-@-webkit-keyframes shrink {
-  from {
-    transform: scale(1);
-  }
-  to {
-    transform: scale(0.85);
-  }
-}
-@keyframes shrink {
-  from {
-    transform: scale(1);
-  }
-  to {
-    transform: scale(0.85);
-  }
-}
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
+        body {
+            font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--background);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.5;
+        }
 
-</style>
-	<meta charset="UTF-8">
-	<title>wallpaper de fou</title>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
 
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
 
-	<center>
-<script src="https://widgets.coingecko.com/coingecko-coin-list-widget.js"></script>
-<coingecko-coin-list-widget  coin-ids="binancecoin,echelon,marketmove" currency="usd" font-color="#000000" locale="fr" width="300"></coingecko-coin-list-widget>
-	<br>
-	<script src="https://widgets.coingecko.com/coingecko-coin-converter-widget.js"></script>
-<coingecko-coin-converter-widget  coin-id="echelon" currency="usd" background-color="#1f2434" font-color="#ffffff" locale="fr" width="300"></coingecko-coin-converter-widget>
-	<br>
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--text);
+            text-align: center;
+            width: 100%;
+        }
 
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+        }
 
-	</center>
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Main top section layout */
+        .top-section {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        @media (min-width: 992px) {
+            .top-section {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .input-group {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        @media (min-width: 576px) {
+            .input-group {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+        }
+
+        .form-control {
+            width: 100%;
+            position: relative;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background-color: var(--background);
+            color: var(--text);
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--input-focus);
+        }
+
+        button {
+            padding: 12px 20px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-btn);
+            color: #fff;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-btn-hover);
+        }
+
+        .btn-danger {
+            background-color: transparent;
+            color: var(--danger-btn);
+            border: 1px solid var(--danger-btn);
+        }
+
+        .btn-danger:hover {
+            background-color: rgba(255, 56, 96, 0.1);
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        @media (min-width: 576px) {
+            .summary-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .summary-item {
+            padding: 16px;
+            background-color: var(--background);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .summary-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .summary-value {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .positive {
+            color: var(--positive);
+        }
+
+        .negative {
+            color: var(--negative);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        th, td {
+            padding: 16px;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th {
+            color: var(--text-secondary);
+            font-weight: 500;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: var(--card-hover);
+        }
+
+        .coin-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .coin-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .coin-name {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .coin-symbol {
+            font-weight: 600;
+        }
+
+        .coin-fullname {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .align-right {
+            text-align: right;
+        }
+
+        .price-change {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        
+        .percentage {
+            font-size: 0.85em;
+            opacity: 0.9;
+        }
+
+        .add-btn-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 6px;
+        }
+
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 120px;
+            background-color: var(--card-bg);
+            color: var(--text);
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -60px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Responsive table */
+        @media (max-width: 767px) {
+            .responsive-table {
+                overflow-x: auto;
+            }
+
+            th, td {
+                padding: 12px 8px;
+                font-size: 12px;
+            }
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .crypto-intro {
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 16px;
+            line-height: 1.6;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .donation-info {
+            margin-bottom: 30px;
+        }
+
+        .donation-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--text);
+        }
+
+        .donation-address {
+            margin-bottom: 16px;
+        }
+
+        .donation-address strong {
+            color: var(--accent);
+            margin-right: 10px;
+        }
+
+        .address {
+            font-family: monospace;
+            word-break: break-all;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* Styles pour champs éditables */
+        .editable-amount, .editable-price {
+            background-color: rgba(0, 209, 178, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 10px;
+            width: 100%;
+            max-width: 100px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .editable-amount:focus, .editable-price:focus {
+            border-color: var(--accent);
+            outline: none;
+            box-shadow: 0 0 0 2px var(--input-focus);
+        }
+        
+        /* Styles pour les symboles dollar */
+        .dollar-sign, .currency-symbol {
+            color: var(--text-secondary);
+        }
+        
+        /* Dollar signs dans les tableaux et résumés */
+        .summary-value .currency-symbol,
+        .align-right .currency-symbol {
+            margin-right: 1px;
+        }
+        
+        .price-input-container {
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+        
+        .dollar-sign {
+            position: absolute;
+            left: 8px;
+            color: var(--text-secondary);
+            z-index: 1;
+            font-size: 14px;
+            pointer-events: none;
+        }
+        
+        .editable-price {
+            padding-left: 18px;
+        }
+
+        /* Suggestions dropdown */
+        .dropdown-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-top: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: none;
+        }
+
+        .dropdown-suggestions.active {
+            display: block;
+        }
+
+        .suggestion-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .suggestion-item:hover {
+            background-color: var(--card-hover);
+        }
+
+        .suggestion-item .coin-symbol {
+            font-weight: 600;
+        }
+
+        .suggestion-item .coin-name {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-left: 6px;
+        }
+
+        /* Scrollbar pour dropdown */
+        .dropdown-suggestions::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .dropdown-suggestions::-webkit-scrollbar-track {
+            background: var(--card-bg);
+            border-radius: 8px;
+        }
+
+        .dropdown-suggestions::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 8px;
+        }
+
+        .dropdown-suggestions::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        /* Removed the pencil icon from editable fields */
+        .editable {
+            position: relative;
+        }
+    </style>
 </head>
-
 <body>
+    <div class="container">
+        <header>
+            <h1>REALTIME - Crypto Portfolio Tracker</h1>
+        </header>
 
-<div class="container">
-  <div class="ghost">
-    <div class="head">
-      <div class="headphones">
-        <div class="cup"></div>
-        <div class="cup"></div>
-      </div>
-      <div class="face">
-        <div class="eyes">
-          <div class="eye">
-            <div class="eyebrow"></div>
-            <div class="pupil"></div>
-          </div>
-          <div class="eye">
-            <div class="eyebrow"></div>
-            <div class="pupil"></div>
-          </div>
+        <div class="card">
+            <div class="top-section">
+                <!-- Left side: Input Form -->
+                <div class="input-container">
+                    <h2 class="section-title">Add New Asset</h2>
+                    <div class="input-group">
+                        <div class="form-control">
+                            <label class="form-label" for="symbol">Crypto Symbol</label>
+                            <input type="text" id="symbol" placeholder="ex: BTC, ETH, BNB" autocomplete="off" />
+                            <div id="symbolSuggestions" class="dropdown-suggestions"></div>
+                        </div>
+                        <div class="form-control">
+                            <label class="form-label" for="amount">Amount</label>
+                            <input type="number" id="amount" placeholder="0.00000000" step="0.00000001" />
+                        </div>
+                        <div class="form-control">
+                            <label class="form-label" for="purchasePrice">Purchase Price</label>
+                            <div class="price-input-container">
+                                <span class="dollar-sign">$</span>
+                                <input type="number" id="purchasePrice" placeholder="0.00000000" step="0.00000001" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="add-btn-container">
+                        <button id="addBtn" class="btn-primary">Add to Portfolio</button>
+                    </div>
+                </div>
+
+                <!-- Right side: Portfolio Summary -->
+                <div class="summary-container">
+                    <h2 class="section-title">Portfolio Summary</h2>
+                    <div class="summary-grid">
+                        <div class="summary-item">
+                            <div class="summary-label">Total Invested</div>
+                            <div class="summary-value">$<span id="totalInvested">0.00</span></div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-label">Current Value</div>
+                            <div class="summary-value">$<span id="totalValue">0.00</span></div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-label">Net Profit/Loss</div>
+                            <div class="summary-value" id="netProfitLossContainer">
+                            $<span id="netProfitLoss">0.00</span> <span class="percentage">(<span id="netProfitLossPercentage">0.00%</span>)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="mouth"></div>
-      </div>
-    </div>
-    <div class="body">
-      <div class="torso"></div>
-      <div class="bottom">
-        <div class="bump"></div>
-        <div class="bump"></div>
-        <div class="bump"></div>
-      </div>
-    </div>
-  </div>
-  <div class="shadow"></div>
-</div>
-</body>
 
+        <div class="card">
+            <h2 class="section-title">Assets</h2>
+            <div class="responsive-table">
+                <table id="portfolioTable">
+                    <thead>
+                        <tr>
+                            <th>Asset</th>
+                            <th>Amount</th>
+                            <th>Purchase Price</th>
+                            <th>Current Price</th>
+                            <th class="align-right">Total Value</th>
+                            <th class="align-right">Net Profit/Loss</th>
+                            <th class="align-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="portfolioBody">
+                        <!-- Les actifs seront ajoutés ici dynamiquement -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div class="crypto-intro">
+                <p>Stay ahead of the market with our real-time cryptocurrency tracker! Monitor price movements, track your gains, and make informed investment decisions with ease.</p>
+            </div>
+
+            <div class="donation-info">
+                <div class="donation-title">Support This Project</div>
+
+                <p class="donation-address"><strong>BTC:</strong> <span class="address">bc1q4rvquzg8ml4l4tgctzty47se8nyrprwqqfprun</span></p>
+                <p class="donation-address"><strong>ETH:</strong> <span class="address">0x2dd9873A2DA36323d709A950a9a188B55289445a</span></p>
+                <p class="donation-address"><strong>SOL:</strong> <span class="address">AKA6tNc9njdzfeoUJKz96joUvpXGnysSaDS1NxiTWqc4</span></p>
+                <p class="donation-address"><strong>LTC:</strong> <span class="address">LQbaFwg1Qmj9wdwSv2P2tMpxck9NfAetFr</span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let portfolio = [];
+        let websocket = null;
+        let priceData = {};
+        let amountInputs = {}; // Pour stocker les références aux inputs de quantité
+
+        // Liste des symboles crypto populaires pour les suggestions
+        const popularCryptos = [
+            { symbol: 'BTC', name: 'Bitcoin' },
+            { symbol: 'ETH', name: 'Ethereum' },
+            { symbol: 'BNB', name: 'Binance Coin' },
+            { symbol: 'SOL', name: 'Solana' },
+            { symbol: 'ADA', name: 'Cardano' },
+            { symbol: 'XRP', name: 'Ripple' },
+            { symbol: 'DOT', name: 'Polkadot' },
+            { symbol: 'DOGE', name: 'Dogecoin' },
+            { symbol: 'AVAX', name: 'Avalanche' },
+            { symbol: 'LINK', name: 'Chainlink' },
+            { symbol: 'MATIC', name: 'Polygon' },
+            { symbol: 'UNI', name: 'Uniswap' },
+            { symbol: 'LTC', name: 'Litecoin' },
+            { symbol: 'ATOM', name: 'Cosmos' },
+            { symbol: 'XLM', name: 'Stellar' },
+            { symbol: 'ALGO', name: 'Algorand' },
+            { symbol: 'NEAR', name: 'NEAR Protocol' },
+            { symbol: 'FTM', name: 'Fantom' },
+            { symbol: 'XTZ', name: 'Tezos' },
+            { symbol: 'EOS', name: 'EOS' },
+            { symbol: 'AAVE', name: 'Aave' },
+            { symbol: 'SAND', name: 'The Sandbox' },
+            { symbol: 'MANA', name: 'Decentraland' },
+            { symbol: 'CRO', name: 'Cronos' },
+            { symbol: 'FIL', name: 'Filecoin' }
+        ];
+
+        // Initialize the app
+        function init() {
+            // Load portfolio from localStorage
+            portfolio = JSON.parse(localStorage.getItem('cryptoPortfolio')) || [];
+            
+            renderPortfolio();
+            connectWebSocket();
+
+            // Add event listeners
+            document.getElementById('addBtn').addEventListener('click', addToPortfolio);
+            setupSymbolSuggestions();
+            setupEnterKeyHandler();
+
+            // Fermer dropdown lorsqu'on clique ailleurs
+            document.addEventListener('click', function(event) {
+                const dropdown = document.getElementById('symbolSuggestions');
+                const symbolInput = document.getElementById('symbol');
+
+                if (event.target !== symbolInput && event.target !== dropdown) {
+                    dropdown.classList.remove('active');
+                }
+            });
+        }
+        
+        // Setup Enter key handler for form fields
+        function setupEnterKeyHandler() {
+            const inputFields = [
+                document.getElementById('symbol'),
+                document.getElementById('amount'),
+                document.getElementById('purchasePrice')
+            ];
+            
+            inputFields.forEach(input => {
+                input.addEventListener('keypress', function(event) {
+                    // Check if Enter key was pressed
+                    if (event.key === 'Enter') {
+                        event.preventDefault(); // Prevent default form submission
+                        addToPortfolio();
+                    }
+                });
+            });
+        }
+
+        // Setup suggestions pour symbole crypto
+        function setupSymbolSuggestions() {
+            const symbolInput = document.getElementById('symbol');
+            const suggestionsContainer = document.getElementById('symbolSuggestions');
+
+            symbolInput.addEventListener('focus', function() {
+                populateSuggestions(this.value);
+                suggestionsContainer.classList.add('active');
+            });
+
+            symbolInput.addEventListener('input', function() {
+                populateSuggestions(this.value);
+            });
+        }
+
+        // Remplir les suggestions selon l'entrée utilisateur
+        function populateSuggestions(query) {
+            const suggestionsContainer = document.getElementById('symbolSuggestions');
+            suggestionsContainer.innerHTML = '';
+
+            // Filtrer les cryptos selon l'entrée utilisateur
+            const filteredCryptos = popularCryptos.filter(crypto => 
+                crypto.symbol.toLowerCase().includes(query.toLowerCase()) || 
+                crypto.name.toLowerCase().includes(query.toLowerCase())
+            );
+
+            // Limiter à 10 suggestions maximum
+            const limitedCryptos = filteredCryptos.slice(0, 10);
+
+            if (limitedCryptos.length === 0) {
+                suggestionsContainer.classList.remove('active');
+                return;
+            }
+
+            // Créer les éléments de suggestion
+            limitedCryptos.forEach(crypto => {
+                const item = document.createElement('div');
+                item.className = 'suggestion-item';
+                item.innerHTML = `<span class="coin-symbol">${crypto.symbol}</span> <span class="coin-name">${crypto.name}</span>`;
+
+                item.addEventListener('click', function() {
+                    document.getElementById('symbol').value = crypto.symbol;
+                    suggestionsContainer.classList.remove('active');
+                });
+
+                suggestionsContainer.appendChild(item);
+            });
+
+            suggestionsContainer.classList.add('active');
+        }
+
+        // Connect to Binance WebSocket
+        function connectWebSocket() {
+            // Close existing connection if any
+            if (websocket) {
+                websocket.close();
+            }
+
+            // Create symbols string for WebSocket URL
+            const uniqueSymbols = [...new Set(portfolio.map(item => item.symbol.toLowerCase()))];
+            if (uniqueSymbols.length === 0) {
+                // Pas de symboles à surveiller, mise à jour initiale et sortie
+                updateUIWithoutRender();
+                return;
+            }
+            
+            const symbols = uniqueSymbols.map(symbol => symbol + 'usdt@ticker').join('/');
+
+            if (symbols) {
+                const wsUrl = `wss://stream.binance.com:9443/ws/${symbols}`;
+                websocket = new WebSocket(wsUrl);
+
+                websocket.onopen = () => {
+                    console.log('Connected to Binance WebSocket');
+                };
+
+                websocket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    const symbol = data.s.replace('USDT', '');
+                    priceData[symbol] = {
+                        price: parseFloat(data.c), // Current price
+                        priceChangePercent: parseFloat(data.P) // 24h price change percentage
+                    };
+                    
+                    // Mettre à jour les affichages de prix en temps réel
+                    portfolio.forEach(item => {
+                        if (item.symbol === symbol) {
+                            const priceContainer = document.getElementById(`price-container-${item.id}`);
+                            if (priceContainer) {
+                                priceContainer.innerHTML = `<span class="currency-symbol">$</span>${formatNumberWithCommas(priceData[symbol].price)}`;
+                            }
+                            
+                            const changeElement = document.getElementById(`change-${item.id}`);
+                            if (changeElement) {
+                                changeElement.textContent = `${priceData[symbol].priceChangePercent >= 0 ? '+' : ''}${formatPercentage(priceData[symbol].priceChangePercent)}%`;
+                                changeElement.className = priceData[symbol].priceChangePercent >= 0 ? 'positive percentage' : 'negative percentage';
+                            }
+                        }
+                    });
+                    
+                    updateUIWithoutRender(); // Mise à jour complète des valeurs
+                };
+
+                websocket.onerror = (error) => {
+                    console.error('WebSocket Error:', error);
+                };
+
+                websocket.onclose = () => {
+                    console.log('Disconnected from Binance WebSocket');
+                    // Try to reconnect after 5 seconds
+                    setTimeout(connectWebSocket, 5000);
+                };
+            }
+        }
+
+        // Add item to portfolio
+        function addToPortfolio() {
+            const symbolInput = document.getElementById('symbol');
+            const amountInput = document.getElementById('amount');
+            const priceInput = document.getElementById('purchasePrice');
+
+            const symbol = symbolInput.value.trim().toUpperCase();
+            const amount = parseFloat(amountInput.value);
+            const purchasePrice = parseFloat(priceInput.value);
+
+            if (!symbol || isNaN(amount) || isNaN(purchasePrice)) {
+                alert('Please fill in all fields correctly');
+                return;
+            }
+
+            const now = new Date();
+            const timeAdded = formatDate(now);
+
+            // Ajouter un nouvel actif
+            const newItem = {
+                id: Date.now(), // Unique ID using timestamp
+                symbol: symbol,
+                amount: amount,
+                purchasePrice: parseFloat(purchasePrice.toFixed(2)),
+                timeAdded: timeAdded
+            };
+
+            // Add to portfolio array
+            portfolio.push(newItem);
+            
+            // Save to localStorage
+            savePortfolio();
+
+            // Reconnect WebSocket with new symbol
+            connectWebSocket();
+
+            // Clear inputs
+            symbolInput.value = '';
+            amountInput.value = '';
+            priceInput.value = '';
+
+            // Update UI
+            renderPortfolio();
+        }
+
+        // Remove item from portfolio
+        function removeFromPortfolio(id) {
+            const itemToRemove = portfolio.find(item => item.id.toString() === id.toString());
+            if (!itemToRemove) return;
+            
+            const confirmed = confirm(`Are you sure you want to remove this ${itemToRemove.symbol} entry?`);
+            if (!confirmed) return;
+
+            portfolio = portfolio.filter(item => item.id.toString() !== id.toString());
+            savePortfolio();
+            connectWebSocket(); // Reconnect with updated symbols
+            renderPortfolio();
+        }
+
+        // Mettre à jour la quantité d'un actif
+        function updateAmount(id, newAmount) {
+            // Valider l'entrée
+            const amount = parseFloat(newAmount);
+            if (isNaN(amount) || amount <= 0) {
+                alert('Please enter a valid amount greater than 0');
+                renderPortfolio(); // Réinitialiser l'interface
+                return;
+            }
+
+            // Mettre à jour dans le portfolio
+            const index = portfolio.findIndex(item => item.id.toString() === id.toString());
+            if (index !== -1) {
+                portfolio[index].amount = amount;
+                savePortfolio();
+                updateUIWithoutRender(); // Mise à jour sans recréer la table
+            }
+        }
+        
+        // Mettre à jour le prix d'achat pour un actif spécifique
+        function updatePurchasePrice(id, newPrice) {
+            // Valider l'entrée
+            const price = parseFloat(newPrice);
+            if (isNaN(price) || price <= 0) {
+                alert('Please enter a valid price greater than 0');
+                renderPortfolio(); // Réinitialiser l'interface
+                return;
+            }
+            
+            // Mettre à jour dans le portfolio
+            const index = portfolio.findIndex(item => item.id.toString() === id.toString());
+            if (index !== -1) {
+                portfolio[index].purchasePrice = parseFloat(price.toFixed(8));
+                savePortfolio();
+                updateUIWithoutRender(); // Mise à jour sans recréer la table
+            }
+        }
+
+        // Save portfolio to localStorage
+        function savePortfolio() {
+            localStorage.setItem('cryptoPortfolio', JSON.stringify(portfolio));
+        }
+
+        // Format a number with commas and dynamic decimal places
+        function formatNumberWithCommas(number) {
+            if (typeof number !== 'number') {
+                number = parseFloat(number);
+            }
+            if (isNaN(number)) return "0.00000000";
+            
+            const absNumber = Math.abs(number);
+            let decimals = 8; // Default to 8 decimal places
+
+            // Dynamic decimal place selection based on number magnitude
+            if (absNumber < 0.00001) {
+                decimals = 8;
+            } else if (absNumber < 0.0001) {
+                decimals = 7;
+            } else if (absNumber < 0.001) {
+                decimals = 6;
+            } else if (absNumber < 0.01) {
+                decimals = 5;
+            } else if (absNumber < 0.1) {
+                decimals = 4;
+            } else if (absNumber < 1) {
+                decimals = 3;
+            } else if (absNumber < 100) {
+                decimals = 2;
+            } else if (absNumber < 1000) {
+                decimals = 2;
+            } else {
+                decimals = 0;
+            }
+
+            return number.toLocaleString('en-US', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+        }
+        
+        // Format token amounts with up to 8 decimal places when needed
+        function formatTokenAmount(number) {
+            // Pour les petites valeurs ou les valeurs qui ont besoin de précision, utiliser jusqu'à 8 décimales
+            if (Math.abs(number) < 0.01 || (number.toString().includes('.') && number.toString().split('.')[1].length > 2)) {
+                return number.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 8
+                });
+            } else {
+                return number.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+        }
+        
+        // Format percentage - with commas for thousands but no decimals if above 100
+        function formatPercentage(number) {
+            const absNumber = Math.abs(number);
+            if (absNumber >= 100) {
+                return number.toLocaleString('en-US', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                });
+            } else {
+                return number.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+        }
+        
+        // Format date properly with month abbreviation (period for longer months)
+        function formatDate(date) {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const month = months[date.getMonth()];
+            // Add period only for months with more than 3 letters (April, June, July, Sept)
+            const monthWithPeriod = (month === 'Apr' || month === 'Jun' || month === 'Jul' || month === 'Sep') ? month + '.' : month;
+            const day = String(date.getDate()).padStart(2, '0');
+            const year = date.getFullYear();
+            
+            return `${monthWithPeriod} ${day}, ${year}`;
+        }
+
+        // Render portfolio table
+        function renderPortfolio() {
+            const tbody = document.getElementById('portfolioBody');
+            tbody.innerHTML = '';
+
+            if (portfolio.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td colspan="7" style="text-align: center; color: var(--text-secondary);">
+                        No assets in portfolio. Add your first asset above.
+                    </td>
+                `;
+                tbody.appendChild(row);
+                updateSummary();
+                return;
+            }
+
+            // Vider amountInputs
+            amountInputs = {};
+            
+            // Afficher chaque entrée individuellement sans regroupement
+            portfolio.forEach(item => {
+                const row = document.createElement('tr');
+                
+                const currentPriceData = priceData[item.symbol] || {price: item.purchasePrice, priceChangePercent: 0};
+                const currentPrice = currentPriceData.price;
+                const priceChangePercent = currentPriceData.priceChangePercent || 0;
+                
+                // Calculer les valeurs avec le prix actuel et le prix d'achat
+                const totalValue = parseFloat((item.amount * currentPrice).toFixed(8));
+                const invested = parseFloat((item.amount * item.purchasePrice).toFixed(8));
+                const profitLoss = parseFloat((totalValue - invested).toFixed(8));
+                const profitLossPercentage = invested > 0 ? (profitLoss / invested) * 100 : 0;
+                const profitLossClass = profitLoss >= 0 ? 'positive' : 'negative';
+
+                // Get first letter of symbol for icon
+                const firstLetter = item.symbol.charAt(0);
+
+                row.innerHTML = `
+                    <td>
+                        <div class="coin-info">
+                            <div class="coin-icon">${firstLetter}</div>
+                            <div class="coin-name">
+                                <span class="coin-symbol">${item.symbol}</span>
+                                <span class="coin-fullname tooltip">
+                                    ${item.timeAdded}
+                                    <span class="tooltiptext">Date added: ${item.timeAdded}</span>
+                                </span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="editable">
+                        <input type="number" class="editable-amount" value="${formatTokenAmount(item.amount)}" step="0.00000001" 
+                            data-id="${item.id}-amount" oninput="updateAmount('${item.id}', this.value)">
+                    </td>
+                    <td class="editable">
+                        <div class="price-input-container">
+                            <span class="dollar-sign">$</span>
+                            <input type="number" class="editable-price" value="${item.purchasePrice}" step="0.00000001" 
+                                data-id="${item.id}-price" oninput="updatePurchasePrice('${item.id}', this.value)">
+                        </div>
+                    </td>
+                    <td>
+                        <div class="price-change">
+                            <span id="price-container-${item.id}"><span class="currency-symbol">$</span>${formatNumberWithCommas(currentPrice)}</span>
+                            <span class="${priceChangePercent >= 0 ? 'positive percentage' : 'negative percentage'}" id="change-${item.id}">
+                                ${priceChangePercent >= 0 ? '+' : ''}${formatPercentage(priceChangePercent)}%
+                            </span>
+                        </div>
+                    </td>
+                    <td class="align-right"><span class="currency-symbol">$</span><span id="value-${item.id}">${formatNumberWithCommas(totalValue)}</span></td>
+                    <td class="align-right">
+                        <span class="${profitLossClass}" id="pl-${item.id}">
+                            <span class="currency-symbol">$</span>${profitLoss >= 0 ? '' : '-'}${formatNumberWithCommas(Math.abs(profitLoss))} <span class="percentage">(${profitLossPercentage >= 0 ? '+' : ''}${formatPercentage(profitLossPercentage)}%)</span>
+                        </span>
+                    </td>
+                    <td class="align-right">
+                        <button class="btn-danger" onclick="removeFromPortfolio('${item.id}')">Remove</button>
+                    </td>
+                `;
+
+                tbody.appendChild(row);
+            });
+
+            // Collecter les références aux inputs après le rendu
+            setTimeout(() => {
+                document.querySelectorAll('.editable-amount, .editable-price').forEach(input => {
+                    const dataId = input.getAttribute('data-id');
+                    amountInputs[dataId] = input;
+                });
+            }, 0);
+
+            updateSummary();
+        }
+
+        // Update UI without full re-render
+        function updateUIWithoutRender() {
+            if (portfolio.length === 0) return;
+
+            portfolio.forEach(item => {
+                const currentPriceData = priceData[item.symbol] || {price: item.purchasePrice, priceChangePercent: 0};
+                const currentPrice = currentPriceData.price;
+                const priceChangePercent = currentPriceData.priceChangePercent || 0;
+
+                // Récupérer l'input amount pour préserver son contenu
+                const amountInput = amountInputs[`${item.id}-amount`];
+                const priceInput = amountInputs[`${item.id}-price`];
+                
+                const displayAmount = amountInput ? parseFloat(amountInput.value) : item.amount;
+                const displayPrice = priceInput ? parseFloat(priceInput.value) : item.purchasePrice;
+
+                // Calculer avec la valeur affichée
+                const totalValue = parseFloat((displayAmount * currentPrice).toFixed(8));
+                const invested = parseFloat((displayAmount * displayPrice).toFixed(8));
+                const profitLoss = parseFloat((totalValue - invested).toFixed(8));
+                const profitLossPercentage = invested > 0 ? (profitLoss / invested) * 100 : 0;
+                const profitLossClass = profitLoss >= 0 ? 'positive' : 'negative';
+
+                // Mettre à jour les éléments individuels
+                const priceContainer = document.getElementById(`price-container-${item.id}`);
+                const changeElement = document.getElementById(`change-${item.id}`);
+                const valueElement = document.getElementById(`value-${item.id}`);
+                const plElement = document.getElementById(`pl-${item.id}`);
+
+                if (priceContainer) priceContainer.innerHTML = `<span class="currency-symbol">$</span>${formatNumberWithCommas(currentPrice)}`;
+                if (changeElement) {
+                    changeElement.textContent = `${priceChangePercent >= 0 ? '+' : ''}${formatPercentage(priceChangePercent)}%`;
+                    changeElement.className = priceChangePercent >= 0 ? 'positive percentage' : 'negative percentage';
+                }
+                if (valueElement) valueElement.textContent = formatNumberWithCommas(totalValue);
+                if (plElement) {
+                    plElement.innerHTML = `<span class="currency-symbol">$</span>${profitLoss >= 0 ? '' : '-'}${formatNumberWithCommas(Math.abs(profitLoss))} <span class="percentage">(${profitLossPercentage >= 0 ? '+' : ''}${formatPercentage(profitLossPercentage)}%)</span>`;
+                    plElement.className = profitLossClass;
+                }
+            });
+
+            updateSummary();
+        }
+
+        // Update summary section
+        function updateSummary() {
+            let totalInvested = 0;
+            let totalValue = 0;
+            
+            // Calculer directement à partir de chaque entrée individuelle
+            portfolio.forEach(item => {
+                const currentPriceData = priceData[item.symbol] || {price: 0};
+                const currentPrice = currentPriceData.price || item.purchasePrice; // Utiliser le prix d'achat si le prix actuel n'est pas disponible
+                
+                // Utiliser la valeur de l'input si disponible
+                const amountInput = amountInputs[`${item.id}-amount`];
+                const priceInput = amountInputs[`${item.id}-price`];
+                
+                const amount = amountInput ? parseFloat(amountInput.value) : item.amount;
+                const price = priceInput ? parseFloat(priceInput.value) : item.purchasePrice;
+
+                if (!isNaN(amount)) {
+                    // Calculer l'investissement pour cette entrée
+                    const invested = parseFloat((amount * price).toFixed(8));
+                    // Calculer la valeur actuelle pour cette entrée
+                    const value = parseFloat((amount * currentPrice).toFixed(8));
+                    
+                    totalInvested += invested;
+                    totalValue += value;
+                }
+            });
+
+            const netProfitLoss = parseFloat((totalValue - totalInvested).toFixed(8));
+            const netProfitLossPercentage = totalInvested > 0 ? (netProfitLoss / totalInvested) * 100 : 0;
+            const profitLossClass = netProfitLoss >= 0 ? 'positive' : 'negative';
+
+            document.getElementById('totalInvested').textContent = formatNumberWithCommas(totalInvested);
+            document.getElementById('totalValue').textContent = formatNumberWithCommas(totalValue);
+
+            const netPLElement = document.getElementById('netProfitLoss');
+            netPLElement.textContent = formatNumberWithCommas(Math.abs(netProfitLoss));
+            
+            // Ajouter le signe - si négatif
+            const netPLPrefix = document.getElementById('netProfitLossPrefix');
+            if (netPLPrefix) {
+                netPLPrefix.textContent = netProfitLoss >= 0 ? '' : '-';
+            }
+
+            const netPLContainer = document.getElementById('netProfitLossContainer');
+            netPLContainer.className = `summary-value ${profitLossClass}`;
+
+            const netPLPercentageElement = document.getElementById('netProfitLossPercentage');
+            netPLPercentageElement.textContent = `${netProfitLossPercentage >= 0 ? '+' : ''}${formatPercentage(netProfitLossPercentage)}%`;
+            netPLPercentageElement.className = 'percentage';
+        }
+
+        // Initialize app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
 </html>
