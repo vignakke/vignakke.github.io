@@ -19,6 +19,7 @@
             --primary-btn-hover: #00c4a7;
             --danger-btn: #ff3860;
             --danger-btn-hover: #ff1f4b;
+            --danger-bg: #7e1e1b;
             --input-focus: rgba(0, 209, 178, 0.2);
         }
 
@@ -48,16 +49,18 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid var(--border);
         }
 
-        h1 {
-            font-size: 28px;
+        .portfolio-title {
+            font-size: 24px;
             font-weight: 600;
             color: var(--text);
-            text-align: center;
-            width: 100%;
+        }
+
+        .portfolio-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
         }
 
         .card {
@@ -157,13 +160,22 @@
         }
 
         .btn-danger {
-            background-color: transparent;
-            color: var(--danger-btn);
-            border: 1px solid var(--danger-btn);
+            background-color: var(--danger-bg);
+            color: #fff;
         }
 
         .btn-danger:hover {
-            background-color: rgba(255, 56, 96, 0.1);
+            opacity: 0.9;
+        }
+
+        .btn-cancel {
+            background-color: transparent;
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-cancel:hover {
+            background-color: var(--card-hover);
         }
 
         .section-title {
@@ -280,7 +292,7 @@
             gap: 6px;
             align-items: center;
         }
-        
+
         .percentage {
             font-size: 0.85em;
             opacity: 0.9;
@@ -395,24 +407,24 @@
             outline: none;
             box-shadow: 0 0 0 2px var(--input-focus);
         }
-        
+
         /* Styles pour les symboles dollar */
         .dollar-sign, .currency-symbol {
             color: var(--text-secondary);
         }
-        
+
         /* Dollar signs dans les tableaux et résumés */
         .summary-value .currency-symbol,
         .align-right .currency-symbol {
             margin-right: 1px;
         }
-        
+
         .price-input-container {
             display: flex;
             align-items: center;
             position: relative;
         }
-        
+
         .dollar-sign {
             position: absolute;
             left: 8px;
@@ -421,7 +433,7 @@
             font-size: 14px;
             pointer-events: none;
         }
-        
+
         .editable-price {
             padding-left: 18px;
         }
@@ -490,12 +502,111 @@
         .editable {
             position: relative;
         }
+
+        /* Bouton poubelle */
+        .trash-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background-color: var(--background);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 16px; /* Taille de l'emoji */
+            color: #ff3860; /* Couleur rouge */
+        }
+
+        .trash-button:hover {
+            background-color: var(--card-hover);
+        }
+
+        .trash-button svg {
+            width: 16px;
+            height: 16px;
+            color: var(--negative); /* Couleur rouge pour l'icône */
+        }
+
+        .trash-icon {
+            color: var(--negative);
+            stroke: var(--negative);
+        }
+
+        /* Modal de confirmation */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            transform: translateY(-20px);
+            transition: all 0.3s;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .modal-message {
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: flex-end;
+        }
+
+        /* Fix for number input validation */
+        input[type="number"] {
+            min-width: 0;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>REALTIME - Crypto Portfolio Tracker</h1>
+            <div>
+                <h1 class="portfolio-title">Crypto Portfolio</h1>
+                <p class="portfolio-subtitle">Monitor your crypto assets, track profits, and analyze performance in real-time</p>
+            </div>
         </header>
 
         <div class="card">
@@ -511,13 +622,13 @@
                         </div>
                         <div class="form-control">
                             <label class="form-label" for="amount">Amount</label>
-                            <input type="number" id="amount" placeholder="0.00000000" step="0.00000001" />
+                            <input type="text" id="amount" placeholder="0.00000000" />
                         </div>
                         <div class="form-control">
                             <label class="form-label" for="purchasePrice">Purchase Price</label>
                             <div class="price-input-container">
                                 <span class="dollar-sign">$</span>
-                                <input type="number" id="purchasePrice" placeholder="0.00000000" step="0.00000001" />
+                                <input type="text" id="purchasePrice" placeholder="0.00000000" />
                             </div>
                         </div>
                     </div>
@@ -572,9 +683,6 @@
         </div>
 
         <div class="footer">
-            <div class="crypto-intro">
-                <p>Stay ahead of the market with our real-time cryptocurrency tracker! Monitor price movements, track your gains, and make informed investment decisions with ease.</p>
-            </div>
 
             <div class="donation-info">
                 <div class="donation-title">Support This Project</div>
@@ -587,12 +695,30 @@
         </div>
     </div>
 
+    <!-- Modal de confirmation pour la suppression -->
+    <div id="removeModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="coin-icon" id="modalCoinIcon"></div>
+                <div class="modal-title">Remove <span id="modalCoinName"></span></div>
+            </div>
+            <div class="modal-message">
+                Are you sure you want to remove this asset from your portfolio?
+            </div>
+            <div class="modal-actions">
+                <button id="cancelRemoveBtn" class="btn-cancel">Cancel</button>
+                <button id="confirmRemoveBtn" class="btn-danger">Remove</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Global variables
         let portfolio = [];
         let websocket = null;
         let priceData = {};
         let amountInputs = {}; // Pour stocker les références aux inputs de quantité
+        let currentRemoveId = null; // Pour stocker l'ID de l'actif à supprimer
 
         // Liste des symboles crypto populaires pour les suggestions
         const popularCryptos = [
@@ -627,7 +753,7 @@
         function init() {
             // Load portfolio from localStorage
             portfolio = JSON.parse(localStorage.getItem('cryptoPortfolio')) || [];
-            
+
             renderPortfolio();
             connectWebSocket();
 
@@ -635,6 +761,7 @@
             document.getElementById('addBtn').addEventListener('click', addToPortfolio);
             setupSymbolSuggestions();
             setupEnterKeyHandler();
+            setupModalListeners();
 
             // Fermer dropdown lorsqu'on clique ailleurs
             document.addEventListener('click', function(event) {
@@ -646,7 +773,33 @@
                 }
             });
         }
-        
+
+        // Setup modal listeners
+        function setupModalListeners() {
+            const modal = document.getElementById('removeModal');
+            const cancelBtn = document.getElementById('cancelRemoveBtn');
+            const confirmBtn = document.getElementById('confirmRemoveBtn');
+
+            cancelBtn.addEventListener('click', function() {
+                modal.classList.remove('active');
+                currentRemoveId = null;
+            });
+
+            confirmBtn.addEventListener('click', function() {
+                if (currentRemoveId) {
+                    // Effectuer la suppression
+                    portfolio = portfolio.filter(item => item.id.toString() !== currentRemoveId.toString());
+                    savePortfolio();
+                    connectWebSocket(); // Reconnect with updated symbols
+                    renderPortfolio();
+
+                    // Fermer la modal
+                    modal.classList.remove('active');
+                    currentRemoveId = null;
+                }
+            });
+        }
+
         // Setup Enter key handler for form fields
         function setupEnterKeyHandler() {
             const inputFields = [
@@ -654,7 +807,7 @@
                 document.getElementById('amount'),
                 document.getElementById('purchasePrice')
             ];
-            
+
             inputFields.forEach(input => {
                 input.addEventListener('keypress', function(event) {
                     // Check if Enter key was pressed
@@ -731,7 +884,7 @@
                 updateUIWithoutRender();
                 return;
             }
-            
+
             const symbols = uniqueSymbols.map(symbol => symbol + 'usdt@ticker').join('/');
 
             if (symbols) {
@@ -749,7 +902,7 @@
                         price: parseFloat(data.c), // Current price
                         priceChangePercent: parseFloat(data.P) // 24h price change percentage
                     };
-                    
+
                     // Mettre à jour les affichages de prix en temps réel
                     portfolio.forEach(item => {
                         if (item.symbol === symbol) {
@@ -757,7 +910,7 @@
                             if (priceContainer) {
                                 priceContainer.innerHTML = `<span class="currency-symbol">$</span>${formatNumberWithCommas(priceData[symbol].price)}`;
                             }
-                            
+
                             const changeElement = document.getElementById(`change-${item.id}`);
                             if (changeElement) {
                                 changeElement.textContent = `${priceData[symbol].priceChangePercent >= 0 ? '+' : ''}${formatPercentage(priceData[symbol].priceChangePercent)}%`;
@@ -765,7 +918,7 @@
                             }
                         }
                     });
-                    
+
                     updateUIWithoutRender(); // Mise à jour complète des valeurs
                 };
 
@@ -788,11 +941,21 @@
             const priceInput = document.getElementById('purchasePrice');
 
             const symbol = symbolInput.value.trim().toUpperCase();
-            const amount = parseFloat(amountInput.value);
-            const purchasePrice = parseFloat(priceInput.value);
+            const amountValue = amountInput.value.trim();
+            const priceValue = priceInput.value.trim();
 
-            if (!symbol || isNaN(amount) || isNaN(purchasePrice)) {
-                alert('Please fill in all fields correctly');
+            // Vérifier si les champs sont vides
+            if (!symbol || !amountValue || !priceValue) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            const amount = parseFloat(amountValue);
+            const purchasePrice = parseFloat(priceValue);
+
+            // Vérifier si les valeurs sont valides
+            if (isNaN(amount) || amount <= 0 || isNaN(purchasePrice) || purchasePrice <= 0) {
+                alert('Please enter valid numbers greater than 0');
                 return;
             }
 
@@ -810,7 +973,7 @@
 
             // Add to portfolio array
             portfolio.push(newItem);
-            
+
             // Save to localStorage
             savePortfolio();
 
@@ -826,27 +989,37 @@
             renderPortfolio();
         }
 
-        // Remove item from portfolio
-        function removeFromPortfolio(id) {
+        // Show remove confirmation modal
+        function showRemoveModal(id) {
             const itemToRemove = portfolio.find(item => item.id.toString() === id.toString());
             if (!itemToRemove) return;
-            
-            const confirmed = confirm(`Are you sure you want to remove this ${itemToRemove.symbol} entry?`);
-            if (!confirmed) return;
 
-            portfolio = portfolio.filter(item => item.id.toString() !== id.toString());
-            savePortfolio();
-            connectWebSocket(); // Reconnect with updated symbols
-            renderPortfolio();
+            // Set current ID to remove
+            currentRemoveId = id;
+
+            // Update modal content
+            document.getElementById('modalCoinIcon').textContent = itemToRemove.symbol.charAt(0);
+            document.getElementById('modalCoinName').textContent = itemToRemove.symbol;
+
+            // Show modal
+            document.getElementById('removeModal').classList.add('active');
         }
 
         // Mettre à jour la quantité d'un actif
         function updateAmount(id, newAmount) {
-            // Valider l'entrée
+            // Ne pas valider pendant la saisie
+            if (newAmount === '' || newAmount === '0' || newAmount === '0.') {
+                return; // Permettre la saisie de zéros et de points décimaux
+            }
+
+            // Valider uniquement quand l'entrée est complète
             const amount = parseFloat(newAmount);
             if (isNaN(amount) || amount <= 0) {
-                alert('Please enter a valid amount greater than 0');
-                renderPortfolio(); // Réinitialiser l'interface
+                // Ne pas afficher d'alerte pendant la saisie
+                if (newAmount !== '' && !newAmount.endsWith('.') && !newAmount.endsWith('0')) {
+                    alert('Please enter a valid amount greater than 0');
+                    renderPortfolio(); // Réinitialiser l'interface
+                }
                 return;
             }
 
@@ -858,17 +1031,25 @@
                 updateUIWithoutRender(); // Mise à jour sans recréer la table
             }
         }
-        
+
         // Mettre à jour le prix d'achat pour un actif spécifique
         function updatePurchasePrice(id, newPrice) {
-            // Valider l'entrée
+            // Ne pas valider pendant la saisie
+            if (newPrice === '' || newPrice === '0' || newPrice === '0.') {
+                return; // Permettre la saisie de zéros et de points décimaux
+            }
+
+            // Valider uniquement quand l'entrée est complète
             const price = parseFloat(newPrice);
             if (isNaN(price) || price <= 0) {
-                alert('Please enter a valid price greater than 0');
-                renderPortfolio(); // Réinitialiser l'interface
+                // Ne pas afficher d'alerte pendant la saisie
+                if (newPrice !== '' && !newPrice.endsWith('.') && !newPrice.endsWith('0')) {
+                    alert('Please enter a valid price greater than 0');
+                    renderPortfolio(); // Réinitialiser l'interface
+                }
                 return;
             }
-            
+
             // Mettre à jour dans le portfolio
             const index = portfolio.findIndex(item => item.id.toString() === id.toString());
             if (index !== -1) {
@@ -889,7 +1070,7 @@
                 number = parseFloat(number);
             }
             if (isNaN(number)) return "0.00000000";
-            
+
             const absNumber = Math.abs(number);
             let decimals = 8; // Default to 8 decimal places
 
@@ -919,7 +1100,7 @@
                 maximumFractionDigits: decimals
             });
         }
-        
+
         // Format token amounts with up to 8 decimal places when needed
         function formatTokenAmount(number) {
             // Pour les petites valeurs ou les valeurs qui ont besoin de précision, utiliser jusqu'à 8 décimales
@@ -935,7 +1116,7 @@
                 });
             }
         }
-        
+
         // Format percentage - with commas for thousands but no decimals if above 100
         function formatPercentage(number) {
             const absNumber = Math.abs(number);
@@ -951,7 +1132,7 @@
                 });
             }
         }
-        
+
         // Format date properly with month abbreviation (period for longer months)
         function formatDate(date) {
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -960,7 +1141,7 @@
             const monthWithPeriod = (month === 'Apr' || month === 'Jun' || month === 'Jul' || month === 'Sep') ? month + '.' : month;
             const day = String(date.getDate()).padStart(2, '0');
             const year = date.getFullYear();
-            
+
             return `${monthWithPeriod} ${day}, ${year}`;
         }
 
@@ -983,15 +1164,15 @@
 
             // Vider amountInputs
             amountInputs = {};
-            
+
             // Afficher chaque entrée individuellement sans regroupement
             portfolio.forEach(item => {
                 const row = document.createElement('tr');
-                
+
                 const currentPriceData = priceData[item.symbol] || {price: item.purchasePrice, priceChangePercent: 0};
                 const currentPrice = currentPriceData.price;
                 const priceChangePercent = currentPriceData.priceChangePercent || 0;
-                
+
                 // Calculer les valeurs avec le prix actuel et le prix d'achat
                 const totalValue = parseFloat((item.amount * currentPrice).toFixed(8));
                 const invested = parseFloat((item.amount * item.purchasePrice).toFixed(8));
@@ -1002,48 +1183,77 @@
                 // Get first letter of symbol for icon
                 const firstLetter = item.symbol.charAt(0);
 
-                row.innerHTML = `
-                    <td>
-                        <div class="coin-info">
-                            <div class="coin-icon">${firstLetter}</div>
-                            <div class="coin-name">
-                                <span class="coin-symbol">${item.symbol}</span>
-                                <span class="coin-fullname tooltip">
-                                    ${item.timeAdded}
-                                    <span class="tooltiptext">Date added: ${item.timeAdded}</span>
-                                </span>
-                            </div>
-                        </div>
-                    </td>
-                    <td class="editable">
-                        <input type="number" class="editable-amount" value="${formatTokenAmount(item.amount)}" step="0.00000001" 
-                            data-id="${item.id}-amount" oninput="updateAmount('${item.id}', this.value)">
-                    </td>
-                    <td class="editable">
-                        <div class="price-input-container">
-                            <span class="dollar-sign">$</span>
-                            <input type="number" class="editable-price" value="${item.purchasePrice}" step="0.00000001" 
-                                data-id="${item.id}-price" oninput="updatePurchasePrice('${item.id}', this.value)">
-                        </div>
-                    </td>
-                    <td>
-                        <div class="price-change">
-                            <span id="price-container-${item.id}"><span class="currency-symbol">$</span>${formatNumberWithCommas(currentPrice)}</span>
-                            <span class="${priceChangePercent >= 0 ? 'positive percentage' : 'negative percentage'}" id="change-${item.id}">
-                                ${priceChangePercent >= 0 ? '+' : ''}${formatPercentage(priceChangePercent)}%
+                // Créer la ligne
+                const tdAsset = document.createElement('td');
+                tdAsset.innerHTML = `
+                    <div class="coin-info">
+                        <div class="coin-icon">${firstLetter}</div>
+                        <div class="coin-name">
+                            <span class="coin-symbol">${item.symbol}</span>
+                            <span class="coin-fullname tooltip">
+                                ${item.timeAdded}
+                                <span class="tooltiptext">Date added: ${item.timeAdded}</span>
                             </span>
                         </div>
-                    </td>
-                    <td class="align-right"><span class="currency-symbol">$</span><span id="value-${item.id}">${formatNumberWithCommas(totalValue)}</span></td>
-                    <td class="align-right">
-                        <span class="${profitLossClass}" id="pl-${item.id}">
-                            <span class="currency-symbol">$</span>${profitLoss >= 0 ? '' : '-'}${formatNumberWithCommas(Math.abs(profitLoss))} <span class="percentage">(${profitLossPercentage >= 0 ? '+' : ''}${formatPercentage(profitLossPercentage)}%)</span>
-                        </span>
-                    </td>
-                    <td class="align-right">
-                        <button class="btn-danger" onclick="removeFromPortfolio('${item.id}')">Remove</button>
-                    </td>
+                    </div>
                 `;
+                row.appendChild(tdAsset);
+
+                const tdAmount = document.createElement('td');
+                tdAmount.className = 'editable';
+                tdAmount.innerHTML = `
+                    <input type="text" class="editable-amount" value="${formatTokenAmount(item.amount)}" 
+                        data-id="${item.id}-amount" oninput="updateAmount('${item.id}', this.value)">
+                `;
+                row.appendChild(tdAmount);
+
+                const tdPurchase = document.createElement('td');
+                tdPurchase.className = 'editable';
+                tdPurchase.innerHTML = `
+                    <div class="price-input-container">
+                        <span class="dollar-sign">$</span>
+                        <input type="text" class="editable-price" value="${item.purchasePrice}" 
+                            data-id="${item.id}-price" oninput="updatePurchasePrice('${item.id}', this.value)">
+                    </div>
+                `;
+                row.appendChild(tdPurchase);
+
+                const tdCurrentPrice = document.createElement('td');
+                tdCurrentPrice.innerHTML = `
+                    <div class="price-change">
+                        <span id="price-container-${item.id}"><span class="currency-symbol">$</span>${formatNumberWithCommas(currentPrice)}</span>
+                        <span class="${priceChangePercent >= 0 ? 'positive percentage' : 'negative percentage'}" id="change-${item.id}">
+                            ${priceChangePercent >= 0 ? '+' : ''}${formatPercentage(priceChangePercent)}%
+                        </span>
+                    </div>
+                `;
+                row.appendChild(tdCurrentPrice);
+
+                const tdTotalValue = document.createElement('td');
+                tdTotalValue.className = 'align-right';
+                tdTotalValue.innerHTML = `<span class="currency-symbol">$</span><span id="value-${item.id}">${formatNumberWithCommas(totalValue)}</span>`;
+                row.appendChild(tdTotalValue);
+
+                const tdProfitLoss = document.createElement('td');
+                tdProfitLoss.className = 'align-right';
+                tdProfitLoss.innerHTML = `
+                    <span class="${profitLossClass}" id="pl-${item.id}">
+                        <span class="currency-symbol">$</span>${profitLoss >= 0 ? '' : '-'}${formatNumberWithCommas(Math.abs(profitLoss))} <span class="percentage">(${profitLossPercentage >= 0 ? '+' : ''}${formatPercentage(profitLossPercentage)}%)</span>
+                    </span>
+                `;
+                row.appendChild(tdProfitLoss);
+
+                const tdActions = document.createElement('td');
+                tdActions.className = 'align-right';
+
+                const trashButton = document.createElement('button');
+                trashButton.className = 'trash-button';
+                trashButton.style.color = '#ff3860'; // Couleur rouge explicite
+                trashButton.innerHTML = '🗑️'; // Emoji poubelle
+                trashButton.onclick = function() { showRemoveModal(item.id); };
+
+                tdActions.appendChild(trashButton);
+                row.appendChild(tdActions);
 
                 tbody.appendChild(row);
             });
@@ -1071,7 +1281,7 @@
                 // Récupérer l'input amount pour préserver son contenu
                 const amountInput = amountInputs[`${item.id}-amount`];
                 const priceInput = amountInputs[`${item.id}-price`];
-                
+
                 const displayAmount = amountInput ? parseFloat(amountInput.value) : item.amount;
                 const displayPrice = priceInput ? parseFloat(priceInput.value) : item.purchasePrice;
 
@@ -1107,16 +1317,16 @@
         function updateSummary() {
             let totalInvested = 0;
             let totalValue = 0;
-            
+
             // Calculer directement à partir de chaque entrée individuelle
             portfolio.forEach(item => {
                 const currentPriceData = priceData[item.symbol] || {price: 0};
                 const currentPrice = currentPriceData.price || item.purchasePrice; // Utiliser le prix d'achat si le prix actuel n'est pas disponible
-                
+
                 // Utiliser la valeur de l'input si disponible
                 const amountInput = amountInputs[`${item.id}-amount`];
                 const priceInput = amountInputs[`${item.id}-price`];
-                
+
                 const amount = amountInput ? parseFloat(amountInput.value) : item.amount;
                 const price = priceInput ? parseFloat(priceInput.value) : item.purchasePrice;
 
@@ -1125,7 +1335,7 @@
                     const invested = parseFloat((amount * price).toFixed(8));
                     // Calculer la valeur actuelle pour cette entrée
                     const value = parseFloat((amount * currentPrice).toFixed(8));
-                    
+
                     totalInvested += invested;
                     totalValue += value;
                 }
@@ -1140,7 +1350,7 @@
 
             const netPLElement = document.getElementById('netProfitLoss');
             netPLElement.textContent = formatNumberWithCommas(Math.abs(netProfitLoss));
-            
+
             // Ajouter le signe - si négatif
             const netPLPrefix = document.getElementById('netProfitLossPrefix');
             if (netPLPrefix) {
