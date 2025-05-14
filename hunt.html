@@ -284,10 +284,10 @@
             margin-bottom: 4px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.4px;
         }
         .stat-item p {
-            font-size: clamp(0.9em, 2.2vw, 1.1em); /* Légèrement réduit pour plus de texte */
+            font-size: clamp(0.9em, 2.2vw, 1.1em); 
             font-weight: 600; color: var(--text-primary);
         }
-        .stat-item p .details { /* Pour le texte additionnel dans Balance Finale */
+        .stat-item p .details { 
             font-size: 0.75em;
             font-weight: 400;
             color: var(--text-secondary);
@@ -398,7 +398,9 @@
                         <thead>
                             <tr>
                                 <th>Machine</th>
-                                <th>Mise (€)</th> <th>Gains (€)</th> <th>Multi.</th>
+                                <th>Mise (€)</th> 
+                                <th>Gains (€)</th> 
+                                <th>Multi.</th>
                                 <th><i class="fas fa-times-circle"></i></th>
                             </tr>
                         </thead>
@@ -419,17 +421,14 @@
                         <input type="number" id="initialBalanceInput" value="0.00" step="0.01" min="0">
                     </div>
                     <div class="stat-item">
-                        <h4>Mise Totale Hunt (€)</h4> <p id="statTotalBet">0.00 €</p>
+                        <h4>Mise Totale Hunt (€)</h4>
+                        <p id="statTotalBet">0.00 €</p>
                     </div>
                     <div class="stat-item">
                         <h4>Gain Brut (Total Bonus)</h4> 
                         <p id="statTotalWinnings">0.00 €</p>
                     </div>
                     <div class="stat-item">
-                        <h4>Gain Net</h4> 
-                        <p id="statNetWinnings" class="neutral">0.00 €</p>
-                    </div>
-                     <div class="stat-item">
                         <h4>Profit / Perte</h4>
                         <p id="statProfitLoss" class="neutral">0.00 €</p>
                     </div>
@@ -493,12 +492,12 @@
 
             const statTotalBetEl = document.getElementById('statTotalBet');
             const statTotalWinningsEl = document.getElementById('statTotalWinnings'); // Gain Brut (Total Bonus)
-            const statNetWinningsEl = document.getElementById('statNetWinnings');     // Gain Net (sera = Gain Brut)
-            const statProfitLossEl = document.getElementById('statProfitLoss');       // NOUVEAU : Profit / Perte (Gain Brut - Balance Initiale)
+            // statNetWinningsEl n'est plus utilisé car Gain Net = Gain Brut.
+            const statProfitLossEl = document.getElementById('statProfitLoss');     
             const statRoiPercentageEl = document.getElementById('statRoiPercentage'); 
-            const statFinalBalanceEl = document.getElementById('statFinalBalance');   // Balance Finale (sera = Gain Brut, avec texte descriptif)
+            const statFinalBalanceEl = document.getElementById('statFinalBalance');   
             const statAverageBetEl = document.getElementById('statAverageBet');
-            const statBonusCountEl = document.getElementById('statBonusCount');       // Renommé en "Nombre de Bonus" dans l'HTML
+            const statBonusCountEl = document.getElementById('statBonusCount');       
             const statPendingBonusCountEl = document.getElementById('statPendingBonusCount');
 
             const saveSessionBtn = document.getElementById('saveSessionBtn');
@@ -860,10 +859,10 @@
             }
 
             function calculateStats() {
-                let totalBetsInTable = 0; // Somme des mises dans le tableau
-                let totalBonusWinnings = 0; // Somme des gains des bonus = Gain Brut
-                let activeBonusEntries = 0; // Nombre de lignes avec une activité
-                let pendingBonusCount = 0;  // Bonus avec mise mais gain non saisi
+                let totalBetsInTable = 0; 
+                let totalBonusWinnings = 0; 
+                let activeBonusEntries = 0; 
+                let pendingBonusCount = 0;  
                 const currentInitialBalance = parseFloat(initialBalanceInput.value) || 0;
 
                 sessionData.forEach(row => {
@@ -888,23 +887,13 @@
                     }
                 });
                 
-                // Mise Totale Hunt (€) - Total des mises du tableau
                 statTotalBetEl.textContent = totalBetsInTable.toFixed(2) + ' €';
                 
-                // Gain Brut (Total Bonus)
                 const gainBrut = totalBonusWinnings;
                 statTotalWinningsEl.textContent = gainBrut.toFixed(2) + ' €'; 
 
-                // Gain Net (Selon votre définition = Gain Brut)
-                const userDefinedGainNet = gainBrut;
-                statNetWinningsEl.textContent = userDefinedGainNet.toFixed(2) + ' €';
-                // La coloration du Gain Net sera probablement toujours positive ou neutre si c'est égal au Gain Brut.
-                statNetWinningsEl.classList.remove('positive', 'negative', 'neutral');
-                if (userDefinedGainNet > 0) { statNetWinningsEl.classList.add('positive'); }
-                else { statNetWinningsEl.classList.add('neutral'); }
+                // "Gain Net" a été supprimé de l'affichage. La variable n'est plus nécessaire ici.
 
-
-                // Profit / Perte (Gain Brut - Balance Initiale)
                 const profitOrLoss = gainBrut - currentInitialBalance;
                 statProfitLossEl.textContent = profitOrLoss.toFixed(2) + ' €';
                 statProfitLossEl.classList.remove('positive', 'negative', 'neutral');
@@ -916,7 +905,6 @@
                     statProfitLossEl.classList.add('neutral');
                 }
 
-                // ROI (%) (Profit / Balance Initiale)
                 let roiPercentage = 0;
                 if (currentInitialBalance > 0) {
                     roiPercentage = (profitOrLoss / currentInitialBalance) * 100;
@@ -932,24 +920,24 @@
                 } else {
                     statRoiPercentageEl.classList.add('neutral');
                 }
-
-                // Balance Finale (Selon votre définition = Gain Brut) avec texte descriptif
-                const finalBalanceUserLogic = gainBrut;
+                
+                const finalBalanceUserLogic = gainBrut; // Selon votre logique: Balance Finale = Gain Brut
                 let finalBalanceText = `${finalBalanceUserLogic.toFixed(2)} €`;
-                const diffFromInitial = finalBalanceUserLogic - currentInitialBalance; // C'est égal à profitOrLoss
-
-                if (currentInitialBalance > 0 || activeBonusEntries > 0) { // Afficher le détail si une balance initiale est saisie ou s'il y a des bonus
-                    if (diffFromInitial >= 0) {
-                        finalBalanceText += ` <span class="details">(+${diffFromInitial.toFixed(2)} € vs initial ${currentInitialBalance.toFixed(2)} €)</span>`;
+                // Le profit/perte est déjà calculé comme profitOrLoss (Gain Brut - Balance Initiale)
+                
+                if (currentInitialBalance > 0 || activeBonusEntries > 0) {
+                    const diffForDisplay = profitOrLoss; 
+                    if (diffForDisplay >= 0) {
+                        finalBalanceText += ` <span class="details">(+${diffForDisplay.toFixed(2)} € vs initial ${currentInitialBalance.toFixed(2)} €)</span>`;
                     } else {
-                        finalBalanceText += ` <span class="details">(${diffFromInitial.toFixed(2)} € vs initial ${currentInitialBalance.toFixed(2)} €)</span>`;
+                        finalBalanceText += ` <span class="details">(${diffForDisplay.toFixed(2)} € vs initial ${currentInitialBalance.toFixed(2)} €)</span>`;
                     }
                 }
-                statFinalBalanceEl.innerHTML = finalBalanceText; // Utiliser innerHTML pour le span
+                statFinalBalanceEl.innerHTML = finalBalanceText; 
                 statFinalBalanceEl.classList.remove('positive', 'negative', 'neutral');
-                if (diffFromInitial > 0) {
+                if (profitOrLoss > 0) { // La coloration de la balance finale dépend du profit/perte par rapport à l'initial
                     statFinalBalanceEl.classList.add('positive');
-                } else if (diffFromInitial < 0) {
+                } else if (profitOrLoss < 0) {
                     statFinalBalanceEl.classList.add('negative');
                 } else {
                     statFinalBalanceEl.classList.add('neutral');
