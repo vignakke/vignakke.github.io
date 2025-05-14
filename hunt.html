@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bonus Hunt Tracker</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --font-family-main: 'Inter', sans-serif;
+            --bg-primary: #0A0C10;
+            --bg-secondary: #13171F;
+            --bg-tertiary: #1C2128;
+            --text-primary: #D0D8E0;
+            --text-secondary: #7D8590;
+            --text-placeholder: #5E6671;
+            --accent-primary: #58A6FF;
+            --accent-secondary: #3FB950;
+            --accent-danger: #F85149;
+            --border-color: #2A3038;
+            --border-color-light: rgba(255, 255, 255, 0.08);
+            --shadow-color-soft: rgba(0, 0, 0, 0.2);
+            --shadow-color-medium: rgba(0, 0, 0, 0.3);
+            --input-bg: #0A0C10;
+            --input-border: var(--border-color);
+            --input-focus-border: var(--accent-primary);
+            --input-focus-shadow: rgba(88, 166, 255, 0.15);
+
+            /* Styles pour l'effet Glassmorphism Mini Chart (Exemple 10) */
+            --glass-ex10-bg: rgba(18, 23, 38, 0.5); /* Fond plus foncé, opacité 0.5 */
+            --glass-ex10-blur: 8px; /* Blur ajusté */
+            --glass-ex10-radius: 0.5rem; /* 8px */
+            --glass-ex10-shadow: rgba(0, 0, 0, 0.2);
+            --glass-ex10-gradient: linear-gradient(45deg,
+                rgba(59, 130, 246, 0.2), /* Bleu, opacité réduite */
+                rgba(139, 92, 246, 0.2), /* Violet */
+                rgba(236, 72, 153, 0.2)  /* Rose */
+            );
+            --glass-ex10-before-blur: 4px; /* Blur du gradient plus subtil */
+            --glass-ex10-before-opacity: 0.3; /* Opacité du gradient */
+
+            --border-radius-small: 4px;
+            --border-radius-medium: 6px;
+            --border-radius-large: var(--glass-ex10-radius); /* Cohérence */
+        }
+
+        html { overflow-x: hidden; height: 100%; scroll-behavior: smooth; }
+        body {
+            font-family: var(--font-family-main);
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6; padding: 15px; min-height: 100%;
+            display: flex; justify-content: center; align-items: flex-start;
+            overflow-x: hidden; font-size: 14.5px; /* Base un peu plus petite */
+        }
+
+        .app-container { display: flex; gap: 20px; width: 100%; max-width: 1500px; }
+        .main-content { flex: 2.5; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+        .sidebar {
+            flex: 1; min-width: 270px; width: 290px; max-width: 310px; /* Sidebar plus fine */
+            position: sticky; top: 15px; max-height: calc(100vh - 30px);
+            overflow-y: auto; display: flex; flex-direction: column; gap: 15px;
+        }
+
+        /* Effet Glassmorphism (Exemple 10) appliqué aux conteneurs principaux */
+        .glassmorphism-container {
+            padding: 15px; /* Padding pour le contenu à l'intérieur de l'effet */
+            position: relative; overflow: hidden;
+            border-radius: var(--glass-ex10-radius);
+            background: var(--glass-ex10-bg);
+            backdrop-filter: blur(var(--glass-ex10-blur));
+            -webkit-backdrop-filter: blur(var(--glass-ex10-blur));
+            box-shadow: 0 6px 24px var(--glass-ex10-shadow); /* Ombre ajustée */
+            border: 1px solid var(--border-color-light);
+        }
+        .glassmorphism-container::before {
+            content: ""; position: absolute;
+            top: -1px; left: -1px; right: -1px; bottom: -1px;
+            background: var(--glass-ex10-gradient);
+            background-size: 200% 200%; z-index: -1;
+            filter: blur(var(--glass-ex10-before-blur));
+            opacity: var(--glass-ex10-before-opacity);
+            animation: gradient-shift 7s ease-in-out infinite; /* Vitesse animation */
+            border-radius: inherit; pointer-events: none;
+        }
+        /* La sidebar et les sections du main content utilisent cet effet */
+        .sidebar, .app-header, .bonus-collected-section {
+            /* Les styles spécifiques de padding/bg sont dans .glassmorphism-container */
+        }
+         /* Les sections internes de la sidebar n'ont pas besoin de refaire le glassmorphism */
+        .sidebar > section {
+             background-color: transparent !important; /* Force la transparence */
+             padding: 0 !important; border: none !important; box-shadow: none !important;
+        }
+
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; } /* Scrollbar plus fine */
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); border-radius: var(--border-radius-small); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: var(--border-radius-small); }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+        @keyframes gradient-shift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .app-header h1 {
+            font-size: clamp(1.5em, 3.8vw, 1.9em);
+            font-weight: 600; margin-bottom: 12px; /* Moins de marge */
+            text-align: center; color: var(--text-primary);
+        }
+        .session-name-container { display: flex; align-items: center; gap: 8px; }
+        .session-name-container label { font-weight: 500; font-size: 0.9em; color: var(--text-secondary); }
+        #sessionName { flex-grow: 1; min-width: 180px; font-size: 0.9em; padding: 8px 10px;}
+
+        input[type="text"], input[type="number"] {
+            background-color: var(--input-bg); border: 1px solid var(--input-border);
+            color: var(--text-primary); padding: 9px 11px; /* Ajusté */
+            border-radius: var(--border-radius-medium); font-size: 0.9em;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease; width: 100%;
+        }
+        input[type="text"]::placeholder, input[type="number"]::placeholder { color: var(--text-placeholder); }
+        input[type="text"]:focus, input[type="number"]:focus {
+            outline: none; border-color: var(--input-focus-border);
+            box-shadow: 0 0 0 2.5px var(--input-focus-shadow); /* Box shadow focus ajusté */
+        }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
+
+        .btn {
+            padding: 9px 16px; border: 1px solid transparent;
+            border-radius: var(--border-radius-medium); font-weight: 500;
+            cursor: pointer; transition: all 0.15s ease; /* Transition plus rapide */
+            display: inline-flex; align-items: center; justify-content: center;
+            gap: 7px; font-size: 0.9em; white-space: nowrap;
+            box-shadow: 0 1px 2px var(--shadow-color-soft);
+        }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 3px 6px var(--shadow-color-medium); }
+        .btn:active { transform: translateY(0px); box-shadow: 0 1px 2px var(--shadow-color-soft); }
+        .btn i { margin-right: 5px; font-size: 0.95em; }
+        .btn-primary { background-color: var(--accent-primary); color: #0A0C10; border-color: var(--accent-primary); font-weight: 500;}
+        .btn-primary:hover { background-color: color-mix(in srgb, var(--accent-primary) 90%, white); }
+        .btn-secondary { background-color: var(--bg-tertiary); color: var(--text-primary); border-color: var(--border-color); }
+        .btn-secondary:hover { border-color: var(--text-secondary); background-color: var(--border-color); }
+        .btn-danger { background-color: var(--accent-danger); color: #fff; border-color: var(--accent-danger); }
+        .btn-danger:hover { background-color: color-mix(in srgb, var(--accent-danger) 90%, black); }
+
+        .bonus-collected-section h2, .sidebar h3 {
+            font-size: clamp(1.1em, 2.8vw, 1.3em);
+            font-weight: 600; margin-bottom: 12px;
+            padding-bottom: 8px; border-bottom: 1px solid var(--border-color-light); /* Bordure plus claire dans glass */
+            color: var(--text-primary);
+        }
+        .table-controls { margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+        .table-controls .btn { flex-grow: 1; min-width: 130px; }
+
+        .table-wrapper {
+            overflow-x: auto; flex-grow: 1;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-medium);
+            background-color: var(--bg-primary);
+        }
+        #bonusTable { width: 100%; border-collapse: collapse; min-width: 580px; }
+        #bonusTable th, #bonusTable td {
+            padding: 10px 8px; text-align: left;
+            border-bottom: 1px solid var(--border-color); vertical-align: middle;
+        }
+        #bonusTable tr:last-child td { border-bottom: none; }
+        #bonusTable th {
+            background-color: var(--bg-tertiary); font-weight: 500;
+            white-space: nowrap; font-size: 0.85em; color: var(--text-secondary);
+            position: sticky; top: 0; z-index: 10; border-bottom-width: 1px;
+        }
+        #bonusTable th:nth-child(1), #bonusTable td:nth-child(1) { width: 32%; min-width: 170px; }
+        #bonusTable th:nth-child(2), #bonusTable td:nth-child(2) { width: 19%; min-width: 85px; }
+        #bonusTable th:nth-child(3), #bonusTable td:nth-child(3) { width: 19%; min-width: 85px; }
+        #bonusTable th:nth-child(4), #bonusTable td:nth-child(4) { width: 15%; min-width: 75px; text-align: center;}
+        #bonusTable th:nth-child(5), #bonusTable td:nth-child(5) { width: 15%; min-width: 65px; text-align: center;}
+
+        #bonusTable td input[type="text"], #bonusTable td input[type="number"] {
+            max-width: 100%; min-width: 50px; background-color: transparent;
+            border: 1px solid transparent; padding: 8px 6px; /* Padding input table */
+        }
+        #bonusTable td input[type="text"]:focus, #bonusTable td input[type="number"]:focus {
+            background-color: var(--input-bg); border-color: var(--input-focus-border);
+            box-shadow: none;
+        }
+        #bonusTable td .multiplier-display {
+            display: inline-block; padding: 5px 8px;
+            background-color: var(--bg-tertiary);
+            border-radius: var(--border-radius-small); font-size: 0.85em;
+            font-weight: 500; min-width: 40px; text-align: center;
+        }
+        #bonusTable .action-cell { text-align: center; }
+        #bonusTable .delete-row-btn {
+            background: transparent; border: none; color: var(--text-secondary);
+            cursor: pointer; font-size: 1em; padding: 5px;
+            border-radius: var(--border-radius-small);
+            transition: color 0.15s ease, background-color 0.15s ease;
+        }
+        #bonusTable .delete-row-btn:hover { color: var(--accent-danger); background-color: rgba(248, 81, 73, 0.1); }
+
+        .algolia-dropdown {
+            position: absolute; z-index: 2000;
+            max-height: 260px; overflow-y: auto; overflow-x: hidden;
+            border-radius: var(--border-radius-medium);
+            background: rgba(28, 33, 40, 0.85); /* Fond plus sombre */
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); /* Blur plus léger */
+            padding: 5px;
+            box-shadow: 0 6px 20px var(--shadow-color-medium);
+            border: 1px solid var(--border-color);
+        }
+        .algolia-dropdown::before {
+            content: ""; position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(50deg, rgba(88, 166, 255, 0.08), rgba(120,80,220,0.08) );
+            background-size: 220% 220%;
+            z-index: -1; filter: blur(3px); opacity: 0.5;
+            animation: gradient-shift 10s ease-in-out infinite;
+            border-radius: inherit; pointer-events: none;
+        }
+        .algolia-dropdown .provider-group-title {
+            padding: 7px 9px; font-weight: 600; color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color-light);
+            text-transform: uppercase; font-size: 0.7em; letter-spacing: 0.7px;
+            position: sticky; top: -5px; background: inherit;
+            z-index: 1; margin-bottom: 3px;
+        }
+        .algolia-dropdown .slot-item {
+            padding: 8px 10px; cursor: pointer;
+            transition: background-color 0.1s ease; /* Transition plus rapide */
+            border-radius: var(--border-radius-small);
+            font-size: 0.85em; color: var(--text-primary); margin-bottom: 1px;
+        }
+        .algolia-dropdown .slot-item:last-child { margin-bottom: 0; }
+        .algolia-dropdown .slot-item:hover { background-color: var(--accent-primary); color: #0A0C10; font-weight: 500; }
+        .algolia-dropdown .loading-message, .algolia-dropdown .no-results-message {
+            padding: 10px; text-align: center; color: var(--text-secondary);
+            font-style: italic; font-size: 0.85em;
+        }
+
+        /* Section Statistiques plus compacte */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); /* minmax pour items plus petits */
+            gap: 8px;
+        }
+        .stat-item {
+            padding: 10px; /* Padding réduit */
+            text-align: center; position: relative; overflow: hidden;
+            border-radius: var(--glass-ex10-radius);
+            background: var(--glass-ex10-bg);
+            backdrop-filter: blur(var(--glass-ex10-blur));
+            -webkit-backdrop-filter: blur(var(--glass-ex10-blur));
+            box-shadow: 0 3px 12px var(--glass-ex10-shadow); /* Ombre plus douce */
+            border: 1px solid var(--border-color-light);
+        }
+        .stat-item::before {
+            content: ""; position: absolute;
+            top: -1px; left: -1px; right: -1px; bottom: -1px;
+            background: var(--glass-ex10-gradient);
+            background-size: 200% 200%; z-index: -1;
+            filter: blur(var(--glass-ex10-before-blur));
+            opacity: var(--glass-ex10-before-opacity);
+            animation: gradient-shift 9s ease-in-out infinite;
+            border-radius: inherit; pointer-events: none;
+        }
+        .stat-item.initial-balance-item {
+            grid-column: 1 / -1; text-align: left;
+            display: flex; align-items: center; gap: 8px;
+            background: var(--bg-tertiary); /* Pas d'effet glass spécial ici */
+            backdrop-filter: none; -webkit-backdrop-filter: none;
+            box-shadow: 0 1px 3px var(--shadow-color-soft);
+            border: 1px solid var(--border-color);
+            padding: 8px 10px; /* Padding spécifique */
+        }
+        .stat-item.initial-balance-item::before { display: none; }
+        .stat-item.initial-balance-item label {
+            font-size: 0.85em; color: var(--text-secondary);
+            margin-bottom: 0; flex-shrink: 0;
+        }
+        .stat-item.initial-balance-item input[type="number"] {
+            padding: 7px 9px; font-size: 1em; font-weight: 500; /* Input plus petit */
+            text-align: left; flex-grow: 1;
+            background-color: var(--input-bg); border: 1px solid var(--input-border);
+        }
+        .stat-item h4 {
+            font-size: 0.7em; color: var(--text-secondary); /* Très petit */
+            margin-bottom: 4px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.4px;
+        }
+        .stat-item p {
+            font-size: clamp(1em, 2.5vw, 1.2em); /* Valeur plus petite */
+            font-weight: 600; color: var(--text-primary);
+        }
+        .stat-item .positive { color: var(--accent-secondary); }
+        .stat-item .negative { color: var(--accent-danger); }
+
+        .actions-section { padding-top: 8px; }
+        .actions-section .btn { display: block; width: 100%; margin-bottom: 8px; }
+        .actions-section .btn:last-child { margin-bottom: 0; }
+
+        .feedback-message {
+            margin-top: 12px; padding: 9px 12px;
+            border-radius: var(--border-radius-medium);
+            text-align: center; font-weight: 500; display: none;
+            font-size: 0.85em; box-shadow: 0 1px 4px var(--shadow-color-soft);
+        }
+        .feedback-message.success { background-color: var(--accent-secondary); color: #fff; display: block; }
+        .feedback-message.error { background-color: var(--accent-danger); color: #fff; display: block; }
+        .feedback-message.info { background-color: var(--accent-primary); color: #fff; display: block; }
+        
+        /* Modal Styles */
+        .modal {
+            display: none; position: fixed;
+            z-index: 3000; left: 0; top: 0;
+            width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0,0,0,0.6);
+            backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+            align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background-color: var(--bg-secondary);
+            margin: auto; padding: 25px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-large);
+            width: 90%; max-width: 500px;
+            box-shadow: 0 10px 30px var(--shadow-color-medium);
+            position: relative; /* Pour le bouton fermer */
+            color: var(--text-primary);
+        }
+        .modal-content h3 {
+            margin-top: 0; margin-bottom: 15px;
+            color: var(--text-primary); font-size: 1.3em;
+            border-bottom: 1px solid var(--border-color); padding-bottom: 10px;
+        }
+        .modal-close-btn {
+            color: var(--text-secondary);
+            position: absolute; top: 10px; right: 15px;
+            font-size: 1.6em; font-weight: bold;
+            cursor: pointer; transition: color 0.2s ease;
+        }
+        .modal-close-btn:hover, .modal-close-btn:focus { color: var(--text-primary); text-decoration: none; }
+
+
+        @media (max-width: 1100px) {
+            .app-container { flex-direction: column; }
+            .sidebar.glassmorphism-container, .sidebar {
+                position: static; max-height: none;
+                width: 100%; max-width: none; margin-top: 25px; padding: 15px; /* Assurer padding sur mobile */
+            }
+             .sidebar > section { /* Rétablir un peu de padding pour les sections internes sur mobile */
+                padding: 10px 0 !important; /* Uniquement vertical, pour espacement entre h3 et contenu */
+            }
+        }
+        @media (max-width: 768px) {
+            body { padding: 10px; font-size: 14px; }
+            .sidebar.glassmorphism-container, .sidebar { top: 10px; max-height: calc(100vh - 20px); gap: 12px; padding: 12px;}
+            .app-header, .bonus-collected-section { padding: 15px; }
+            .table-controls .btn { min-width: calc(50% - 4px); }
+            #bonusTable th:nth-child(1), #bonusTable td:nth-child(1) { width: auto; min-width: 140px;}
+            #bonusTable th:nth-child(n+2), #bonusTable td:nth-child(n+2) { min-width: 65px; width: auto;}
+        }
+        @media (max-width: 480px) {
+            .session-name-container { flex-direction: column; align-items: stretch; }
+            .session-name-container label { margin-bottom: 5px; }
+            .table-controls .btn { min-width: 100%; }
+            #bonusTable { min-width: 100%; }
+            #bonusTable th, #bonusTable td { padding: 8px 6px; }
+            #bonusTable th:nth-child(1), #bonusTable td:nth-child(1) { min-width: 110px;}
+            #bonusTable th:nth-child(n+2), #bonusTable td:nth-child(n+2) { min-width: 55px;}
+            .stat-item.initial-balance-item { flex-direction: column; align-items: stretch; }
+            .stat-item.initial-balance-item label { margin-bottom: 5px; }
+            .algolia-dropdown { max-height: 180px; }
+            .modal-content { width: 95%; padding: 20px; }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <main class="main-content">
+            <header class="app-header glassmorphism-container">
+                <h1><i class="fas fa-cogs"></i> Bonus Hunt Tracker</h1>
+                <div class="session-name-container">
+                    <label for="sessionName">Session:</label>
+                    <input type="text" id="sessionName" placeholder="Ex: Soirée du 14/07">
+                </div>
+            </header>
+
+            <section class="bonus-collected-section glassmorphism-container">
+                <h2><i class="fas fa-trophy"></i> Bonus Collectés</h2>
+                <div class="table-controls">
+                    <button id="addRowBtn" class="btn btn-primary"><i class="fas fa-plus"></i> Ajouter</button>
+                    <button id="clearTableBtn" class="btn btn-secondary"><i class="fas fa-broom"></i> Nettoyer</button>
+                </div>
+                <div class="table-wrapper">
+                    <table id="bonusTable">
+                        <thead>
+                            <tr>
+                                <th>Machine</th>
+                                <th>Mise (€)</th>
+                                <th>Gains (€)</th>
+                                <th>Multi.</th>
+                                <th><i class="fas fa-times-circle"></i></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <aside class="sidebar glassmorphism-container">
+            <section>
+                <h3><i class="fas fa-chart-line"></i> Statistiques</h3>
+                <div class="stats-grid">
+                    <div class="stat-item initial-balance-item">
+                        <label for="initialBalanceInput">Balance Initiale (€)</label>
+                        <input type="number" id="initialBalanceInput" value="0.00" step="0.01" min="0">
+                    </div>
+                    <div class="stat-item">
+                        <h4>Mise Totale</h4>
+                        <p id="statTotalBet">0.00 €</p>
+                    </div>
+                    <div class="stat-item">
+                        <h4>Gain Brut</h4>
+                        <p id="statTotalWinnings">0.00 €</p>
+                    </div>
+                    <div class="stat-item">
+                        <h4>Gain Net</h4>
+                        <p id="statNetWinnings" class="neutral">0.00 €</p>
+                    </div>
+                    <div class="stat-item">
+                        <h4>Mise Moy.</h4>
+                        <p id="statAverageBet">0.00 €</p>
+                    </div>
+                    <div class="stat-item">
+                        <h4>Bonus</h4>
+                        <p id="statBonusCount">0</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h3><i class="fas fa-bolt"></i> Actions</h3>
+                <div class="actions-section">
+                    <button id="saveSessionBtn" class="btn btn-primary"><i class="fas fa-save"></i> Sauvegarder Session</button>
+                    <button id="openHistoryModalBtn" class="btn btn-secondary"><i class="fas fa-history"></i> Gérer l'Historique</button>
+                    <button id="resetTrackerBtn" class="btn btn-danger"><i class="fas fa-sync-alt"></i> Réinitialiser Tracker</button>
+                    </div>
+            </section>
+            <div id="feedbackMessage" class="feedback-message"></div>
+        </aside>
+    </div>
+
+    <div id="algoliaDropdown" class="algolia-dropdown" style="display: none;">
+        
+    </div>
+
+    <div id="historyModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close-btn" id="closeHistoryModalBtn">×</span>
+            <h3><i class="fas fa-history"></i> Gestion de l'Historique</h3>
+            <p>La fonctionnalité de gestion de l'historique (sauvegarde/chargement de plusieurs sessions) est en cours de développement.</p>
+            <p>Pour l'instant, votre session active est sauvegardée automatiquement dans votre navigateur.</p>
+            </div>
+    </div>
+
+
+    <script>
+        // LE JAVASCRIPT RESTE LE MÊME QUE LA VERSION PRÉCÉDENTE QUI FONCTIONNAIT
+        // avec l'ajout de la gestion de la modale
+        document.addEventListener('DOMContentLoaded', () => {
+            const sessionNameInput = document.getElementById('sessionName');
+            const initialBalanceInput = document.getElementById('initialBalanceInput');
+            const bonusTableBody = document.getElementById('bonusTable').querySelector('tbody');
+            const addRowBtn = document.getElementById('addRowBtn');
+            const clearTableBtn = document.getElementById('clearTableBtn');
+            const algoliaDropdown = document.getElementById('algoliaDropdown');
+
+            const statTotalBetEl = document.getElementById('statTotalBet');
+            const statTotalWinningsEl = document.getElementById('statTotalWinnings');
+            const statNetWinningsEl = document.getElementById('statNetWinnings');
+            const statAverageBetEl = document.getElementById('statAverageBet');
+            const statBonusCountEl = document.getElementById('statBonusCount');
+
+            const saveSessionBtn = document.getElementById('saveSessionBtn');
+            // const addToHistoryBtn = document.getElementById('addToHistoryBtn'); // Remplacé
+            const resetTrackerBtn = document.getElementById('resetTrackerBtn');
+            // const historyBtn = document.getElementById('historyBtn'); // Remplacé
+
+            const feedbackMessageEl = document.getElementById('feedbackMessage');
+
+            // Modal elements
+            const historyModal = document.getElementById('historyModal');
+            const openHistoryModalBtn = document.getElementById('openHistoryModalBtn'); // Nouveau bouton
+            const closeHistoryModalBtn = document.getElementById('closeHistoryModalBtn');
+
+
+            const ALGOLIA_API_URL = 'https://m37m2qcrh0-dsn.algolia.net/1/indexes/freeSlots/query';
+            const ALGOLIA_HEADERS = {
+                'x-algolia-api-key': 'da9d2da4b154d0423374f859cfc77c71',
+                'x-algolia-application-id': 'M37M2QCRH0',
+                'Content-Type': 'application/json'
+            };
+            let algoliaCache = {};
+            let debounceTimer;
+            let currentAlgoliaInput = null;
+
+            let sessionData = [];
+            const LOCAL_STORAGE_KEY = 'bonusHuntTrackerSession';
+
+            function getFormattedDate() {
+                const today = new Date();
+                const day = String(today.getDate()).padStart(2, '0');
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const year = String(today.getFullYear()).slice(-2);
+                return `${day}/${month}/${year}`;
+            }
+
+            function init() {
+                loadFromLocalStorage();
+                renderTable();
+                calculateStats();
+                addEventListeners();
+            }
+
+            function saveToLocalStorage() {
+                const dataToSave = {
+                    sessionName: sessionNameInput.value,
+                    initialBalance: parseFloat(initialBalanceInput.value) || 0,
+                    rows: sessionData
+                };
+                try {
+                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToSave));
+                    showFeedback("Session sauvegardée !", "success");
+                } catch (e) {
+                    console.error("Error saving to localStorage:", e);
+                    showFeedback("Erreur de sauvegarde.", "error");
+                }
+            }
+
+            function loadFromLocalStorage() {
+                const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+                if (savedData) {
+                    try {
+                        const parsedData = JSON.parse(savedData);
+                        sessionNameInput.value = parsedData.sessionName || getFormattedDate();
+                        initialBalanceInput.value = (parseFloat(parsedData.initialBalance) || 0).toFixed(2);
+                        sessionData = Array.isArray(parsedData.rows) ? parsedData.rows : [];
+                        if (sessionData.length === 0) {
+                            addInitialRows();
+                        }
+                    } catch (e) {
+                        console.error("Error parsing localStorage data:", e);
+                        sessionNameInput.value = getFormattedDate();
+                        initialBalanceInput.value = "0.00";
+                        sessionData = [];
+                        addInitialRows();
+                    }
+                } else {
+                    sessionNameInput.value = getFormattedDate();
+                    initialBalanceInput.value = "0.00";
+                    addInitialRows();
+                }
+            }
+
+            function createRowElement(rowData, index) {
+                const tr = document.createElement('tr');
+                tr.dataset.index = index;
+
+                const tdMachine = document.createElement('td');
+                const machineInput = document.createElement('input');
+                machineInput.type = 'text';
+                machineInput.value = rowData.machineName || '';
+                machineInput.placeholder = 'Rechercher / Saisir...';
+                machineInput.dataset.type = 'machineName';
+                machineInput.addEventListener('input', handleAlgoliaSearchInput);
+                machineInput.addEventListener('focus', handleAlgoliaSearchFocus);
+                machineInput.addEventListener('blur', handleAlgoliaSearchBlur);
+                tdMachine.appendChild(machineInput);
+
+                const tdActions = document.createElement('td');
+                tdActions.classList.add('action-cell');
+                const deleteBtn = document.createElement('button');
+                deleteBtn.classList.add('delete-row-btn');
+                deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                deleteBtn.title = "Supprimer la ligne";
+                deleteBtn.addEventListener('click', () => deleteRow(index));
+                tdActions.appendChild(deleteBtn);
+
+                tr.append(
+                    tdMachine,
+                    createStandardCell(rowData, 'bet', 'number', '0.00'),
+                    createStandardCell(rowData, 'winnings', 'number', '0.00'),
+                    createMultiplierCell(rowData.bet, rowData.winnings),
+                    tdActions
+                );
+                return tr;
+            }
+             function createStandardCell(rowData, type, inputType, placeholder) {
+                const td = document.createElement('td');
+                const input = document.createElement('input');
+                input.type = inputType;
+                if (inputType === 'number') {
+                    input.min = '0';
+                    input.step = '0.01';
+                }
+                const value = rowData[type];
+                input.value = (typeof value === 'number' && value !== null) ? value.toFixed(2) : (value || '');
+                input.placeholder = placeholder;
+                input.dataset.type = type;
+                input.addEventListener('input', handleCellInputLogic);
+                input.addEventListener('change', handleCellSaveAndFormat);
+                td.appendChild(input);
+                return td;
+            }
+
+
+            function createMultiplierCell(bet, winnings) {
+                const td = document.createElement('td');
+                const multiplierDisplay = document.createElement('span');
+                multiplierDisplay.classList.add('multiplier-display');
+                multiplierDisplay.textContent = calculateMultiplier(bet, winnings); // La logique d'affichage est ici
+                td.appendChild(multiplierDisplay);
+                return td;
+            }
+
+            function renderTable() {
+                bonusTableBody.innerHTML = '';
+                if (sessionData.length === 0) { addInitialRows(); }
+                sessionData.forEach((rowData, index) => {
+                    const tr = createRowElement(rowData, index);
+                    bonusTableBody.appendChild(tr);
+                });
+                const deleteButtons = bonusTableBody.querySelectorAll('.delete-row-btn');
+                deleteButtons.forEach(btn => {
+                    btn.disabled = sessionData.length <= 1;
+                    btn.style.opacity = sessionData.length <= 1 ? "0.5" : "1";
+                    btn.style.cursor = sessionData.length <= 1 ? "not-allowed" : "pointer";
+                });
+            }
+
+            function addDefaultRow() {
+                sessionData.push({
+                    id: Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                    machineName: '', algoliaHit: null,
+                    bet: null, winnings: null, // winnings est null par défaut
+                });
+            }
+
+            function addInitialRows() {
+                sessionData = [];
+                for (let i = 0; i < 6; i++) { addDefaultRow(); }
+            }
+
+            function handleAddRow() {
+                addDefaultRow(); renderTable(); calculateStats(); saveToLocalStorage();
+            }
+            
+            function deleteRow(index) {
+                if (sessionData.length <= 1) {
+                    showFeedback("Impossible de supprimer la dernière ligne.", "error"); return;
+                }
+                sessionData.splice(index, 1);
+                renderTable(); calculateStats(); saveToLocalStorage();
+            }
+
+            function clearTableData() {
+                addInitialRows(); renderTable(); calculateStats(); saveToLocalStorage();
+                showFeedback("Tableau nettoyé.", "success");
+            }
+            
+            function handleCellInputLogic(event) {
+                const input = event.target;
+                const tr = input.closest('tr');
+                if (!tr) return;
+                const index = parseInt(tr.dataset.index);
+                const type = input.dataset.type;
+
+                if (sessionData[index]) {
+                    if (type === 'bet' || type === 'winnings') {
+                        const value = input.value.trim();
+                        sessionData[index][type] = value === '' ? null : parseFloat(value);
+                        const multiplierDisplay = tr.querySelector('.multiplier-display');
+                        if (multiplierDisplay) {
+                            multiplierDisplay.textContent = calculateMultiplier(sessionData[index].bet, sessionData[index].winnings);
+                        }
+                    } else if (type === 'machineName') {
+                        sessionData[index][type] = input.value;
+                         if (sessionData[index].algoliaHit && sessionData[index].machineName !== input.value) {
+                            sessionData[index].algoliaHit = null;
+                        }
+                    }
+                    calculateStats();
+                }
+            }
+
+            function handleCellSaveAndFormat(event) {
+                const input = event.target;
+                const tr = input.closest('tr');
+                if (!tr) return;
+                const index = parseInt(tr.dataset.index);
+                const type = input.dataset.type;
+
+                if (sessionData[index]) {
+                    if (input.type === 'number' && input.value) {
+                        const numValue = parseFloat(input.value);
+                        if (!isNaN(numValue)) {
+                            input.value = numValue.toFixed(2);
+                            if (type === 'bet' || type === 'winnings') {
+                                sessionData[index][type] = numValue;
+                            }
+                        } else if (type === 'bet' || type === 'winnings') {
+                             sessionData[index][type] = null;
+                        }
+                    } else if (type === 'bet' || type === 'winnings') {
+                        sessionData[index][type] = null;
+                    }
+                }
+                saveToLocalStorage();
+            }
+
+
+            function handleAlgoliaSearchInput(event) {
+                currentAlgoliaInput = event.target;
+                handleCellInputLogic(event);
+
+                const query = currentAlgoliaInput.value.trim();
+                if (query.length < 2) { hideAlgoliaDropdown(); return; }
+                
+                showAlgoliaDropdownMessage("Chargement...");
+                positionAlgoliaDropdown(currentAlgoliaInput);
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => fetchAlgoliaSuggestions(query), 400);
+            }
+
+            function handleAlgoliaSearchFocus(event) {
+                currentAlgoliaInput = event.target;
+                const query = currentAlgoliaInput.value.trim();
+                if (query.length >= 2) {
+                    if (algoliaCache[query] && algoliaCache[query].length > 0) {
+                        renderAlgoliaDropdown(algoliaCache[query]);
+                    } else { fetchAlgoliaSuggestions(query); }
+                } else { hideAlgoliaDropdown(); }
+            }
+            
+            function handleAlgoliaSearchBlur(event) {
+                setTimeout(() => {
+                    if (!algoliaDropdown.matches(':hover') && currentAlgoliaInput !== document.activeElement && !algoliaDropdown.contains(document.activeElement)) {
+                        hideAlgoliaDropdown();
+                    }
+                }, 150);
+            }
+
+            async function fetchAlgoliaSuggestions(query) {
+                if (algoliaCache[query]) { renderAlgoliaDropdown(algoliaCache[query]); return; }
+                showAlgoliaDropdownMessage("Chargement...");
+                try {
+                    const response = await fetch(ALGOLIA_API_URL, {
+                        method: 'POST', headers: ALGOLIA_HEADERS,
+                        body: JSON.stringify({ query: query, hitsPerPage: 30 })
+                    });
+                    if (!response.ok) throw new Error(`Algolia API error: ${response.status}`);
+                    const data = await response.json();
+                    algoliaCache[query] = data.hits;
+                    renderAlgoliaDropdown(data.hits);
+                } catch (error) {
+                    console.error('Error fetching Algolia suggestions:', error);
+                    showAlgoliaDropdownMessage("Erreur de recherche.");
+                }
+            }
+
+            function renderAlgoliaDropdown(hits) {
+                if (!currentAlgoliaInput) return;
+                algoliaDropdown.innerHTML = '';
+                if (!hits || hits.length === 0) { showAlgoliaDropdownMessage("Aucun jeu trouvé."); return; }
+                const groupedByProvider = hits.reduce((acc, hit) => {
+                    const providerName = (hit.provider && hit.provider.name) ? hit.provider.name : 'Autre';
+                    if (!acc[providerName]) acc[providerName] = [];
+                    acc[providerName].push(hit);
+                    return acc;
+                }, {});
+                const sortedProviderNames = Object.keys(groupedByProvider).sort();
+                for (const providerName of sortedProviderNames) {
+                    const titleEl = document.createElement('div');
+                    titleEl.classList.add('provider-group-title');
+                    titleEl.textContent = providerName;
+                    algoliaDropdown.appendChild(titleEl);
+                    groupedByProvider[providerName].forEach(hit => {
+                        const itemEl = document.createElement('div');
+                        itemEl.classList.add('slot-item');
+                        itemEl.textContent = hit.name;
+                        itemEl.addEventListener('mousedown', (e) => {
+                            e.preventDefault(); selectAlgoliaSlot(hit);
+                        });
+                        algoliaDropdown.appendChild(itemEl);
+                    });
+                }
+                algoliaDropdown.style.display = 'block';
+                positionAlgoliaDropdown(currentAlgoliaInput);
+            }
+
+            function selectAlgoliaSlot(hit) {
+                if (currentAlgoliaInput) {
+                    const tr = currentAlgoliaInput.closest('tr');
+                    if (!tr) return;
+                    const rowIndex = parseInt(tr.dataset.index);
+                    if(sessionData[rowIndex]) {
+                        currentAlgoliaInput.value = hit.name;
+                        sessionData[rowIndex].machineName = hit.name;
+                        sessionData[rowIndex].algoliaHit = hit;
+                        hideAlgoliaDropdown();
+                        calculateStats(); saveToLocalStorage();
+                        currentAlgoliaInput.focus();
+                    }
+                }
+            }
+            
+            function positionAlgoliaDropdown(inputElement) {
+                const inputRect = inputElement.getBoundingClientRect();
+                algoliaDropdown.style.top = (inputRect.bottom + window.scrollY + 4) + 'px';
+                algoliaDropdown.style.left = (inputRect.left + window.scrollX) + 'px';
+                algoliaDropdown.style.width = inputRect.width + 'px';
+            }
+
+            function showAlgoliaDropdownMessage(message) {
+                algoliaDropdown.innerHTML = `<div class="${message === 'Chargement...' ? 'loading-message' : 'no-results-message'}">${message}</div>`;
+                algoliaDropdown.style.display = 'block';
+                if (currentAlgoliaInput) positionAlgoliaDropdown(currentAlgoliaInput);
+            }
+
+            function hideAlgoliaDropdown() { algoliaDropdown.style.display = 'none'; }
+            
+            function calculateMultiplier(bet, winnings) {
+                // Si winnings est null (pas encore saisi), on ne calcule pas.
+                if (bet && winnings !== null && parseFloat(bet) > 0 && parseFloat(winnings) >= 0) {
+                    return (parseFloat(winnings) / parseFloat(bet)).toFixed(2) + 'x';
+                }
+                return '-';
+            }
+
+            function calculateStats() {
+                let totalBet = 0, totalWinnings = 0, bonusCount = 0;
+                const currentInitialBalance = parseFloat(initialBalanceInput.value) || 0;
+
+                sessionData.forEach(row => {
+                    const hasName = row.machineName && row.machineName.trim() !== '';
+                    const rowBet = parseFloat(row.bet);
+                    const rowWinnings = parseFloat(row.winnings); // Winnings peut être null
+
+                    const hasBetValue = !isNaN(rowBet) && row.bet !== null; // Mise renseignée
+                    const hasWinningsValue = !isNaN(rowWinnings) && row.winnings !== null; // Gain renseigné
+
+                    if (hasName || hasBetValue || hasWinningsValue) {
+                        bonusCount++;
+                    }
+                    if (hasBetValue) totalBet += rowBet;
+                    if (hasWinningsValue) totalWinnings += rowWinnings; // On somme même si 0
+                });
+                
+                let sessionNetWinnings;
+                // Si au moins une mise a été faite, calculer le gain net.
+                // Si un gain est null (pas encore saisi) et qu'une mise existe, le gain net est "en attente" ou basé sur la mise.
+                // Pour simplifier: si des mises existent, on calcule.
+                if (totalBet > 0 || totalWinnings > 0 || bonusCount > 0) { // Condition pour calculer gain net
+                     sessionNetWinnings = totalWinnings - totalBet;
+                } else {
+                    sessionNetWinnings = 0; // Ou null pour afficher "-"
+                }
+
+                const averageBet = bonusCount > 0 && totalBet !== 0 ? totalBet / bonusCount : 0;
+
+                statTotalBetEl.textContent = totalBet.toFixed(2) + ' €';
+                statTotalWinningsEl.textContent = totalWinnings.toFixed(2) + ' €';
+
+                // Affichage conditionnel du Gain Net
+                // Si des mises sont faites mais aucun gain du tout sur aucune ligne, on peut considérer la perte.
+                // Mais si des gains sont en attente, c'est différent.
+                // La demande est : "Si aucun gain n’est saisi, il ne faut pas afficher de perte"
+                // Interprétation: Si TOUS les gains sont null, et qu'il y a des mises.
+                let allWinningsNullOrZero = true;
+                let hasBets = false;
+                sessionData.forEach(r => {
+                    if (r.winnings !== null && parseFloat(r.winnings) > 0) allWinningsNullOrZero = false;
+                    if (r.bet !== null && parseFloat(r.bet) > 0) hasBets = true;
+                });
+
+                if (hasBets && allWinningsNullOrZero && bonusCount > 0) { // Si des mises mais aucun gain entré
+                    statNetWinningsEl.textContent = "Bonus en attente"; // MODIFIED LINE
+                    statNetWinningsEl.className = 'neutral'; // Classe neutre
+                } else {
+                    statNetWinningsEl.textContent = sessionNetWinnings.toFixed(2) + ' €';
+                    statNetWinningsEl.classList.remove('positive', 'negative', 'neutral');
+                    if (sessionNetWinnings > 0) statNetWinningsEl.classList.add('positive');
+                    else if (sessionNetWinnings < 0) statNetWinningsEl.classList.add('negative');
+                    else statNetWinningsEl.classList.add('neutral');
+                }
+
+                statAverageBetEl.textContent = averageBet.toFixed(2) + ' €';
+                statBonusCountEl.textContent = bonusCount;
+            }
+
+            function handleSaveSession() { saveToLocalStorage(); }
+
+            function handleResetTracker() {
+                if (confirm("Êtes-vous sûr de vouloir réinitialiser le tracker ? Toutes les données seront perdues.")) {
+                    localStorage.removeItem(LOCAL_STORAGE_KEY);
+                    sessionNameInput.value = getFormattedDate();
+                    initialBalanceInput.value = "0.00";
+                    addInitialRows(); renderTable(); calculateStats();
+                    showFeedback("Tracker réinitialisé.", "success");
+                }
+            }
+            
+            function showFeedback(message, type = "success") {
+                feedbackMessageEl.textContent = message;
+                feedbackMessageEl.className = 'feedback-message';
+                feedbackMessageEl.classList.add(type);
+                feedbackMessageEl.style.display = 'block';
+                setTimeout(() => { feedbackMessageEl.style.display = 'none'; }, 2500);
+            }
+
+            function addEventListeners() {
+                initialBalanceInput.addEventListener('change', () => {
+                    if (initialBalanceInput.value) {
+                        const numValue = parseFloat(initialBalanceInput.value);
+                        if (!isNaN(numValue)) initialBalanceInput.value = numValue.toFixed(2);
+                    }
+                    calculateStats(); saveToLocalStorage();
+                });
+                sessionNameInput.addEventListener('change', saveToLocalStorage);
+                
+                addRowBtn.addEventListener('click', handleAddRow);
+                clearTableBtn.addEventListener('click', clearTableData);
+                saveSessionBtn.addEventListener('click', handleSaveSession);
+                resetTrackerBtn.addEventListener('click', handleResetTracker);
+
+                // Modal Listeners
+                openHistoryModalBtn.addEventListener('click', () => {
+                    historyModal.style.display = 'flex'; // 'flex' pour centrer avec align-items
+                });
+                closeHistoryModalBtn.addEventListener('click', () => {
+                    historyModal.style.display = 'none';
+                });
+                window.addEventListener('click', (event) => { // Fermer si clic en dehors
+                    if (event.target == historyModal) {
+                        historyModal.style.display = 'none';
+                    }
+                });
+
+                document.addEventListener('click', (event) => { // Fermer dropdown algolia
+                    if (currentAlgoliaInput && !currentAlgoliaInput.contains(event.target) && !algoliaDropdown.contains(event.target)) {
+                        hideAlgoliaDropdown();
+                    }
+                });
+            }
+            init();
+        });
+    </script>
+</body>
+</html>
