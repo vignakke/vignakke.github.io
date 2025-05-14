@@ -311,6 +311,7 @@
         .feedback-message.error { background-color: var(--accent-danger); color: #fff; display: block; }
         .feedback-message.info { background-color: var(--accent-primary); color: #fff; display: block; }
         
+        /* Modal Styles */
         .modal {
             display: none; position: fixed;
             z-index: 3000; left: 0; top: 0;
@@ -321,10 +322,10 @@
         }
         .modal-content {
             background-color: var(--bg-secondary);
-            margin: auto; padding: 25px;
+            margin: auto; padding: 20px; /* Réduit un peu le padding */
             border: 1px solid var(--border-color);
             border-radius: var(--border-radius-large);
-            width: 90%; max-width: 500px;
+            width: 90%; max-width: 600px; /* Un peu plus large pour la liste */
             box-shadow: 0 10px 30px var(--shadow-color-medium);
             position: relative; 
             color: var(--text-primary);
@@ -341,6 +342,47 @@
             cursor: pointer; transition: color 0.2s ease;
         }
         .modal-close-btn:hover, .modal-close-btn:focus { color: var(--text-primary); text-decoration: none; }
+        
+        #historyListContainer {
+            max-height: 40vh; /* Limiter la hauteur de la liste */
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        .history-item {
+            background-color: var(--bg-tertiary);
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border-radius: var(--border-radius-medium);
+            border: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap; /* Pour les petits écrans */
+        }
+        .history-item-info {
+            flex-grow: 1;
+        }
+        .history-item-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 1.05em;
+        }
+        .history-item-date {
+            font-size: 0.75em;
+            color: var(--text-secondary);
+            display: block; /* Pour être en dessous du nom */
+        }
+        .history-item-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0; /* Empêcher le rétrécissement */
+        }
+        .history-item-actions .btn {
+            padding: 6px 10px; /* Boutons plus petits dans la modale */
+            font-size: 0.8em;
+        }
+
 
         @media (max-width: 1100px) {
             .app-container { flex-direction: column; }
@@ -359,6 +401,8 @@
             .table-controls .btn { min-width: calc(50% - 4px); }
             #bonusTable th:nth-child(1), #bonusTable td:nth-child(1) { width: auto; min-width: 140px;}
             #bonusTable th:nth-child(n+2), #bonusTable td:nth-child(n+2) { min-width: 65px; width: auto;}
+            .history-item { flex-direction: column; align-items: stretch;}
+            .history-item-actions { justify-content: flex-start; margin-top: 8px; }
         }
         @media (max-width: 480px) {
             .session-name-container { flex-direction: column; align-items: stretch; }
@@ -428,7 +472,7 @@
                         <h4>Gain Brut (Total Bonus)</h4> 
                         <p id="statTotalWinnings">0.00 €</p>
                     </div>
-                    <div class="stat-item">
+                     <div class="stat-item">
                         <h4>Profit / Perte</h4>
                         <p id="statProfitLoss" class="neutral">0.00 €</p>
                     </div>
@@ -476,8 +520,9 @@
         <div class="modal-content">
             <span class="modal-close-btn" id="closeHistoryModalBtn">×</span>
             <h3><i class="fas fa-history"></i> Gestion de l'Historique</h3>
-            <p>La fonctionnalité de gestion de l'historique (sauvegarde/chargement de plusieurs sessions) est en cours de développement.</p>
-            <p>Pour l'instant, votre session active est sauvegardée automatiquement dans votre navigateur.</p>
+            <div id="historyListContainer">
+                <p>Aucune session sauvegardée pour le moment.</p> 
+            </div>
         </div>
     </div>
 
@@ -491,8 +536,7 @@
             const algoliaDropdown = document.getElementById('algoliaDropdown');
 
             const statTotalBetEl = document.getElementById('statTotalBet');
-            const statTotalWinningsEl = document.getElementById('statTotalWinnings'); // Gain Brut (Total Bonus)
-            // statNetWinningsEl n'est plus utilisé car Gain Net = Gain Brut.
+            const statTotalWinningsEl = document.getElementById('statTotalWinnings');
             const statProfitLossEl = document.getElementById('statProfitLoss');     
             const statRoiPercentageEl = document.getElementById('statRoiPercentage'); 
             const statFinalBalanceEl = document.getElementById('statFinalBalance');   
@@ -500,13 +544,14 @@
             const statBonusCountEl = document.getElementById('statBonusCount');       
             const statPendingBonusCountEl = document.getElementById('statPendingBonusCount');
 
-            const saveSessionBtn = document.getElementById('saveSessionBtn');
+            const saveSessionBtn = document.getElementById('saveSessionBtn'); // Pour sauvegarder dans l'historique
             const resetTrackerBtn = document.getElementById('resetTrackerBtn');
             const feedbackMessageEl = document.getElementById('feedbackMessage');
 
             const historyModal = document.getElementById('historyModal');
             const openHistoryModalBtn = document.getElementById('openHistoryModalBtn'); 
             const closeHistoryModalBtn = document.getElementById('closeHistoryModalBtn');
+            const historyListContainer = document.getElementById('historyListContainer');
 
             const ALGOLIA_API_URL = 'https://m37m2qcrh0-dsn.algolia.net/1/indexes/freeSlots/query';
             const ALGOLIA_HEADERS = {
@@ -518,63 +563,70 @@
             let debounceTimer;
             let currentAlgoliaInput = null;
 
-            let sessionData = [];
-            const LOCAL_STORAGE_KEY = 'bonusHuntTrackerSession';
+            let sessionData = []; // Données des bonus (lignes du tableau)
+            const ACTIVE_SESSION_KEY = 'bonusHuntTrackerActiveSession_v2'; // Pour la session en cours de travail
+            const BONUS_HUNT_HISTORY_KEY = 'bonusHuntHistory_v2'; // Pour stocker l'objet des sessions nommées
 
-            function getFormattedDate() {
-                const today = new Date();
-                const day = String(today.getDate()).padStart(2, '0');
-                const month = String(today.getMonth() + 1).padStart(2, '0');
-                const year = String(today.getFullYear()).slice(-2);
-                return `${day}/${month}/${year}`;
+            function getFormattedDate(isoString) {
+                const date = isoString ? new Date(isoString) : new Date();
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = String(date.getFullYear()).slice(-2);
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                return `${day}/${month}/${year} ${hours}:${minutes}`;
             }
 
             function init() {
-                loadFromLocalStorage();
+                loadActiveSession(); // Charger la session active au démarrage
                 renderTable();
                 calculateStats();
                 addEventListeners();
             }
 
-            function saveToLocalStorage() {
+            // Sauvegarde la session active (travail en cours)
+            function saveActiveSession() {
                 const dataToSave = {
-                    sessionName: sessionNameInput.value,
+                    sessionName: sessionNameInput.value.trim() || `Session du ${getFormattedDate()}`,
                     initialBalance: parseFloat(initialBalanceInput.value) || 0,
-                    rows: sessionData
+                    rows: sessionData,
+                    lastModified: new Date().toISOString()
                 };
                 try {
-                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToSave));
-                    showFeedback("Session sauvegardée !", "success");
+                    localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(dataToSave));
+                    // Pas de feedback pour la sauvegarde auto pour ne pas spammer
                 } catch (e) {
-                    console.error("Error saving to localStorage:", e);
-                    showFeedback("Erreur de sauvegarde.", "error");
+                    console.error("Error saving active session to localStorage:", e);
                 }
             }
 
-            function loadFromLocalStorage() {
-                const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+            // Charge la session active au démarrage
+            function loadActiveSession() {
+                const savedData = localStorage.getItem(ACTIVE_SESSION_KEY);
                 if (savedData) {
                     try {
                         const parsedData = JSON.parse(savedData);
-                        sessionNameInput.value = parsedData.sessionName || getFormattedDate();
+                        sessionNameInput.value = parsedData.sessionName || `Session du ${getFormattedDate()}`;
                         initialBalanceInput.value = (parseFloat(parsedData.initialBalance) || 0).toFixed(2);
                         sessionData = Array.isArray(parsedData.rows) ? parsedData.rows : [];
                         if (sessionData.length === 0) {
-                            addInitialRows();
+                            addInitialRows(); 
                         }
                     } catch (e) {
-                        console.error("Error parsing localStorage data:", e);
-                        sessionNameInput.value = getFormattedDate();
-                        initialBalanceInput.value = "0.00";
-                        sessionData = [];
-                        addInitialRows();
+                        console.error("Error parsing active session data:", e);
+                        setDefaultSessionState();
                     }
                 } else {
-                    sessionNameInput.value = getFormattedDate();
-                    initialBalanceInput.value = "0.00";
-                    addInitialRows();
+                    setDefaultSessionState();
                 }
             }
+            
+            function setDefaultSessionState() {
+                sessionNameInput.value = `Session du ${getFormattedDate()}`;
+                initialBalanceInput.value = "0.00";
+                addInitialRows();
+            }
+
 
             function createRowElement(rowData, index) {
                 const tr = document.createElement('tr');
@@ -639,7 +691,7 @@
 
             function renderTable() {
                 bonusTableBody.innerHTML = '';
-                if (sessionData.length === 0) { addInitialRows(); }
+                if (sessionData.length === 0) { addInitialRows(); } // Assurer qu'il y a des lignes si vide
                 sessionData.forEach((rowData, index) => {
                     const tr = createRowElement(rowData, index);
                     bonusTableBody.appendChild(tr);
@@ -660,13 +712,13 @@
                 });
             }
 
-            function addInitialRows() {
-                sessionData = [];
+            function addInitialRows() { // Appelé si sessionData est vide
+                sessionData = []; // S'assurer que c'est vide avant d'ajouter
                 for (let i = 0; i < 6; i++) { addDefaultRow(); }
             }
 
             function handleAddRow() {
-                addDefaultRow(); renderTable(); calculateStats(); saveToLocalStorage();
+                addDefaultRow(); renderTable(); calculateStats(); saveActiveSession();
             }
             
             function deleteRow(index) {
@@ -674,11 +726,11 @@
                     showFeedback("Impossible de supprimer la dernière ligne.", "error"); return;
                 }
                 sessionData.splice(index, 1);
-                renderTable(); calculateStats(); saveToLocalStorage();
+                renderTable(); calculateStats(); saveActiveSession();
             }
 
             function clearTableData() {
-                addInitialRows(); renderTable(); calculateStats(); saveToLocalStorage();
+                addInitialRows(); renderTable(); calculateStats(); saveActiveSession();
                 showFeedback("Tableau nettoyé.", "success");
             }
             
@@ -709,6 +761,7 @@
                         }
                     }
                     calculateStats(); 
+                    saveActiveSession(); // Sauvegarde auto de la session active
                 }
             }
 
@@ -734,13 +787,156 @@
                         }
                     }
                 }
-                saveToLocalStorage();
+                saveActiveSession(); // Sauvegarde auto de la session active
                 calculateStats(); 
             }
 
+            // Sauvegarde la session actuelle DANS L'HISTORIQUE avec le nom donné
+            function handleSaveSessionToHistory() {
+                const sessionNameToSave = sessionNameInput.value.trim();
+                if (!sessionNameToSave) {
+                    showFeedback("Veuillez donner un nom à votre session pour la sauvegarder dans l'historique.", "error");
+                    return;
+                }
+
+                const currentSessionDataForHistory = {
+                    sessionName: sessionNameToSave, // Utilise le nom actuel du champ sessionName
+                    initialBalance: parseFloat(initialBalanceInput.value) || 0,
+                    rows: JSON.parse(JSON.stringify(sessionData)), // Copie profonde des données
+                    savedAt: new Date().toISOString()
+                };
+
+                let history = JSON.parse(localStorage.getItem(BONUS_HUNT_HISTORY_KEY)) || {};
+
+                if (history[sessionNameToSave]) {
+                    if (!confirm(`Une session nommée "${sessionNameToSave}" existe déjà dans l'historique. Voulez-vous la remplacer ?`)) {
+                        showFeedback("Sauvegarde annulée.", "info");
+                        return;
+                    }
+                }
+                
+                history[sessionNameToSave] = currentSessionDataForHistory;
+                localStorage.setItem(BONUS_HUNT_HISTORY_KEY, JSON.stringify(history));
+                showFeedback(`Session "${sessionNameToSave}" sauvegardée dans l'historique !`, "success");
+            }
+
+
+            function displayHistoryInModal() {
+                historyListContainer.innerHTML = ''; // Vider la liste précédente
+                const history = JSON.parse(localStorage.getItem(BONUS_HUNT_HISTORY_KEY)) || {};
+                const sortedSessionNames = Object.keys(history).sort((a, b) => {
+                    // Trier par date de sauvegarde la plus récente en premier
+                    return new Date(history[b].savedAt) - new Date(history[a].savedAt);
+                });
+
+
+                if (sortedSessionNames.length === 0) {
+                    historyListContainer.innerHTML = '<p>Aucune session sauvegardée dans l\'historique.</p>';
+                    return;
+                }
+
+                sortedSessionNames.forEach(sessionNameKey => {
+                    const session = history[sessionNameKey];
+                    const itemEl = document.createElement('div');
+                    itemEl.classList.add('history-item');
+
+                    const infoEl = document.createElement('div');
+                    infoEl.classList.add('history-item-info');
+                    infoEl.innerHTML = `
+                        <span class="history-item-name">${session.sessionName}</span>
+                        <span class="history-item-date">Sauvegardé le: ${getFormattedDate(session.savedAt)}</span>
+                    `;
+
+                    const actionsEl = document.createElement('div');
+                    actionsEl.classList.add('history-item-actions');
+
+                    const loadBtn = document.createElement('button');
+                    loadBtn.classList.add('btn', 'btn-secondary');
+                    loadBtn.innerHTML = '<i class="fas fa-upload"></i> Charger';
+                    loadBtn.addEventListener('click', () => loadSessionFromHistory(sessionNameKey));
+                    
+                    const replaceBtn = document.createElement('button');
+                    replaceBtn.classList.add('btn', 'btn-primary');
+                    replaceBtn.innerHTML = '<i class="fas fa-exchange-alt"></i> Remplacer';
+                    replaceBtn.addEventListener('click', () => replaceSavedSession(sessionNameKey));
+
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.classList.add('btn', 'btn-danger');
+                    deleteBtn.innerHTML = '<i class="fas fa-trash"></i> Supprimer';
+                    deleteBtn.addEventListener('click', () => deleteSessionFromHistory(sessionNameKey));
+
+                    actionsEl.append(loadBtn, replaceBtn, deleteBtn);
+                    itemEl.append(infoEl, actionsEl);
+                    historyListContainer.appendChild(itemEl);
+                });
+            }
+
+            function loadSessionFromHistory(sessionName) {
+                const history = JSON.parse(localStorage.getItem(BONUS_HUNT_HISTORY_KEY)) || {};
+                const sessionToLoad = history[sessionName];
+
+                if (sessionToLoad) {
+                    sessionNameInput.value = sessionToLoad.sessionName;
+                    initialBalanceInput.value = (sessionToLoad.initialBalance || 0).toFixed(2);
+                    sessionData = JSON.parse(JSON.stringify(sessionToLoad.rows || [])); // Copie profonde
+                    
+                    if (sessionData.length === 0) addInitialRows();
+                    
+                    renderTable();
+                    calculateStats();
+                    saveActiveSession(); // Mettre à jour la session active avec celle chargée
+                    showFeedback(`Session "${sessionName}" chargée.`, "success");
+                    historyModal.style.display = 'none';
+                } else {
+                    showFeedback(`Erreur: Session "${sessionName}" non trouvée dans l'historique.`, "error");
+                }
+            }
+            
+            function replaceSavedSession(sessionNameToReplace) {
+                 if (!confirm(`Voulez-vous vraiment remplacer la session sauvegardée "${sessionNameToReplace}" par la session actuellement active dans le tracker ?`)) {
+                    showFeedback("Remplacement annulé.", "info");
+                    return;
+                }
+                
+                const currentActiveData = {
+                    sessionName: sessionNameToReplace, // On garde le nom de la session qu'on remplace
+                    initialBalance: parseFloat(initialBalanceInput.value) || 0,
+                    rows: JSON.parse(JSON.stringify(sessionData)),
+                    savedAt: new Date().toISOString() // Mettre à jour la date de sauvegarde
+                };
+
+                let history = JSON.parse(localStorage.getItem(BONUS_HUNT_HISTORY_KEY)) || {};
+                if (history[sessionNameToReplace]) {
+                    history[sessionNameToReplace] = currentActiveData;
+                    localStorage.setItem(BONUS_HUNT_HISTORY_KEY, JSON.stringify(history));
+                    showFeedback(`Session "${sessionNameToReplace}" remplacée avec succès.`, "success");
+                    displayHistoryInModal(); // Rafraîchir la liste dans la modale
+                } else {
+                     showFeedback(`Erreur: La session "${sessionNameToReplace}" à remplacer n'existe plus.`, "error");
+                }
+            }
+
+
+            function deleteSessionFromHistory(sessionName) {
+                if (!confirm(`Êtes-vous sûr de vouloir supprimer la session "${sessionName}" de l'historique ? Cette action est irréversible.`)) {
+                     showFeedback("Suppression annulée.", "info");
+                    return;
+                }
+                let history = JSON.parse(localStorage.getItem(BONUS_HUNT_HISTORY_KEY)) || {};
+                if (history[sessionName]) {
+                    delete history[sessionName];
+                    localStorage.setItem(BONUS_HUNT_HISTORY_KEY, JSON.stringify(history));
+                    showFeedback(`Session "${sessionName}" supprimée de l'historique.`, "success");
+                    displayHistoryInModal(); // Rafraîchir la liste
+                } else {
+                    showFeedback(`Erreur: Session "${sessionName}" non trouvée.`, "error");
+                }
+            }
+
+
             function handleAlgoliaSearchInput(event) {
                 currentAlgoliaInput = event.target;
-                handleCellInputLogic(event);
+                handleCellInputLogic(event); // Appelle saveActiveSession()
 
                 const query = currentAlgoliaInput.value.trim();
                 if (query.length < 2) { hideAlgoliaDropdown(); return; }
@@ -767,6 +963,7 @@
                         hideAlgoliaDropdown();
                     }
                 }, 150);
+                 // saveActiveSession(); // Sauvegarder après le blur d'un champ machine aussi (déjà fait par handleCellInputLogic)
             }
 
             async function fetchAlgoliaSuggestions(query) {
@@ -827,7 +1024,7 @@
                         sessionData[rowIndex].machineName = hit.name;
                         sessionData[rowIndex].algoliaHit = hit;
                         hideAlgoliaDropdown();
-                        calculateStats(); saveToLocalStorage();
+                        calculateStats(); saveActiveSession(); 
                         currentAlgoliaInput.focus();
                     }
                 }
@@ -892,8 +1089,6 @@
                 const gainBrut = totalBonusWinnings;
                 statTotalWinningsEl.textContent = gainBrut.toFixed(2) + ' €'; 
 
-                // "Gain Net" a été supprimé de l'affichage. La variable n'est plus nécessaire ici.
-
                 const profitOrLoss = gainBrut - currentInitialBalance;
                 statProfitLossEl.textContent = profitOrLoss.toFixed(2) + ' €';
                 statProfitLossEl.classList.remove('positive', 'negative', 'neutral');
@@ -921,9 +1116,8 @@
                     statRoiPercentageEl.classList.add('neutral');
                 }
                 
-                const finalBalanceUserLogic = gainBrut; // Selon votre logique: Balance Finale = Gain Brut
+                const finalBalanceUserLogic = gainBrut;
                 let finalBalanceText = `${finalBalanceUserLogic.toFixed(2)} €`;
-                // Le profit/perte est déjà calculé comme profitOrLoss (Gain Brut - Balance Initiale)
                 
                 if (currentInitialBalance > 0 || activeBonusEntries > 0) {
                     const diffForDisplay = profitOrLoss; 
@@ -935,7 +1129,7 @@
                 }
                 statFinalBalanceEl.innerHTML = finalBalanceText; 
                 statFinalBalanceEl.classList.remove('positive', 'negative', 'neutral');
-                if (profitOrLoss > 0) { // La coloration de la balance finale dépend du profit/perte par rapport à l'initial
+                if (profitOrLoss > 0) { 
                     statFinalBalanceEl.classList.add('positive');
                 } else if (profitOrLoss < 0) {
                     statFinalBalanceEl.classList.add('negative');
@@ -951,15 +1145,13 @@
                 statPendingBonusCountEl.textContent = pendingBonusCount;
             }
 
-            function handleSaveSession() { saveToLocalStorage(); }
-
             function handleResetTracker() {
-                if (confirm("Êtes-vous sûr de vouloir réinitialiser le tracker ? Toutes les données seront perdues.")) {
-                    localStorage.removeItem(LOCAL_STORAGE_KEY);
-                    sessionNameInput.value = getFormattedDate();
-                    initialBalanceInput.value = "0.00";
-                    addInitialRows(); renderTable(); calculateStats();
-                    showFeedback("Tracker réinitialisé.", "success");
+                if (confirm("Êtes-vous sûr de vouloir réinitialiser le tracker ? Toutes les données ACTIVES seront perdues (l'historique ne sera pas affecté).")) {
+                    localStorage.removeItem(ACTIVE_SESSION_KEY); // Supprime uniquement la session active
+                    setDefaultSessionState(); // Réinitialise à un état par défaut
+                    renderTable(); 
+                    calculateStats();
+                    showFeedback("Tracker réinitialisé (session active).", "success");
                 }
             }
             
@@ -968,7 +1160,7 @@
                 feedbackMessageEl.className = 'feedback-message';
                 feedbackMessageEl.classList.add(type);
                 feedbackMessageEl.style.display = 'block';
-                setTimeout(() => { feedbackMessageEl.style.display = 'none'; }, 2500);
+                setTimeout(() => { feedbackMessageEl.style.display = 'none'; }, 3000); // Durée un peu plus longue
             }
 
             function addEventListeners() {
@@ -985,16 +1177,17 @@
                         }
                     }
                     calculateStats(); 
-                    saveToLocalStorage();
+                    saveActiveSession();
                 });
-                sessionNameInput.addEventListener('change', saveToLocalStorage);
+                sessionNameInput.addEventListener('change', saveActiveSession); // Sauvegarde auto du nom de la session active
                 
                 addRowBtn.addEventListener('click', handleAddRow);
                 clearTableBtn.addEventListener('click', clearTableData);
-                saveSessionBtn.addEventListener('click', handleSaveSession);
+                saveSessionBtn.addEventListener('click', handleSaveSessionToHistory); // Modifié pour sauvegarder dans l'historique
                 resetTrackerBtn.addEventListener('click', handleResetTracker);
 
                 openHistoryModalBtn.addEventListener('click', () => {
+                    displayHistoryInModal(); // Afficher la liste à chaque ouverture
                     historyModal.style.display = 'flex'; 
                 });
                 closeHistoryModalBtn.addEventListener('click', () => {
