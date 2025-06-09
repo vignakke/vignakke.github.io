@@ -419,7 +419,7 @@
         // --- Supabase Configuration ---
         const SUPABASE_URL = 'https://rgepcvnzyzzowpkpmvxc.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJnZXBjdm56eXp6b3dwa3BtdnhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk0NzUwNjcsImV4cCI6MjA2NTA1MTA2N30.xTw_-HMvUcFzrrz01mihD7PHiUay9s2hYVNC6YgYpa4';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); // Correction ici : 'window.supabase' au lieu de 'Supabase'
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // --- DOM Elements ---
         const initialBalanceInput = document.getElementById('initialBalanceInput');
@@ -537,8 +537,9 @@
         const signInWithDiscord = async () => {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'discord',
+                // Correction ici : redirige toujours vers votre page GitHub Pages
                 options: {
-                    redirectTo: window.location.origin + window.location.pathname // Redirect back to current page
+                    redirectTo: 'https://vignakke.github.io/BonusHunt.html' 
                 }
             });
             if (error) {
@@ -1184,7 +1185,15 @@
                         .from('sessions')
                         .update({ is_active: huntIsActive })
                         .eq('id', currentSession.id);
-                    if (error) console.error("Error updating hunt status:", error.message);
+                    if (error) {
+                        console.error("Error updating hunt status in Supabase:", error.message);
+                    } else {
+                        currentSession.is_active = huntIsActive; // Update local state
+                        updateHuntStatusUI();
+                        updateStatsAndSave();
+                    }
+                } else {
+                    console.warn("Permission denied: Cannot change hunt status in read-only mode.");
                 }
             }
 
