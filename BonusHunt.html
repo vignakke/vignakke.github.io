@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bonus Hunt Tracker - FR</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Import Supabase client library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --font-family-main: 'Inter', sans-serif;
+            --bg-primary: #0D1117;
+            --bg-secondary: #161B22;
+            --bg-tertiary: #21262D; 
+            --text-primary: #E6EDF3;
+            --text-secondary: #7D8590;
+            --text-placeholder: #5E6671;
+            --accent-primary: #58A6FF;
+            --accent-secondary: #3FB950;
+            --accent-danger: #F85149;
+            --accent-warning: #D29922;
+            --border-color: #30363D;
+            --border-color-light: rgba(255, 255, 255, 0.1);
+            --shadow-color-soft: rgba(0, 0, 0, 0.3);
+            --input-bg: #0D1117;
+            --input-border: var(--border-color);
+            --input-focus-border: var(--accent-primary);
+            --border-radius-medium: 8px;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: var(--font-family-main); 
+            background-color: var(--bg-primary); 
+            color: var(--text-primary);
+        }
+        
+        body {
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+        }
+
+        .app-container { 
+            display: flex; 
+            gap: 20px; 
+            width: 100%; 
+            max-width: 1800px; 
+            height: 100%;
+        }
+        
+        .sidebar { 
+            flex: 0 0 360px; 
+            width: 360px; 
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .main-content { 
+            flex: 1; 
+            min-width: 0; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100%;
+        }
+        
+        .glass-container {
+            padding: 20px;
+            border-radius: var(--border-radius-medium);
+            background: rgba(22, 27, 34, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color-light);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .glass-container::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(45deg, rgba(88, 166, 255, 0.05), rgba(236, 72, 153, 0.05));
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .scrollable-content {
+            overflow-y: auto;
+            overflow-x: hidden;
+            height: 100%;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) transparent;
+        }
+        .scrollable-content::-webkit-scrollbar { width: 5px; }
+        .scrollable-content::-webkit-scrollbar-track { background: transparent; }
+        .scrollable-content::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 3px; }
+
+        h3 { font-size: 1.2em; font-weight: 600; margin: 25px 0 15px 0; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        h3:first-child { margin-top: 0; }
+        
+        .status-button { width: 100%; padding: 12px; font-size: 1.1em; font-weight: 600; margin-bottom: 20px; border: none; border-radius: var(--border-radius-medium); cursor: pointer; color: #fff; }
+        .status-button.completed { background-color: var(--accent-secondary); }
+        .status-button.in-progress { background-color: var(--accent-primary); }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .stat-block { padding: 0; }
+        .stat-block .label { font-size: 0.9em; color: var(--text-secondary); margin-bottom: 5px; display: block; }
+        .stat-block .value { font-size: 1.2em; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px;}
+        .stat-input { background: none; border: none; color: var(--text-primary); font: inherit; padding: 0; width: 80px; }
+        .stat-block .value.positive { color: var(--accent-secondary); }
+        .stat-block .value.negative { color: var(--accent-danger); }
+        
+        #providerRankingList { list-style: none; padding: 0; margin-top: 12px; }
+        .provider-rank-item { display: flex; align-items: center; gap: 12px; padding: 8px 0; font-size: 0.95em; }
+        .provider-rank-item .rank-medal { font-size: 1.2em; width: 20px; text-align: center; }
+        .provider-rank-item .rank-medal.gold { color: #FFD700; }
+        .provider-rank-item .rank-medal.silver { color: #C0C0C0; }
+        .provider-rank-item .rank-medal.bronze { color: #CD7F32; }
+        .provider-rank-item .rank-name { flex-grow: 1; }
+        .provider-rank-item .rank-multi { font-weight: 600; padding: 3px 7px; border-radius: 4px; background-color: var(--bg-primary); }
+
+        #bonus-cards-container { display: flex; flex-direction: column; gap: 10px; }
+        .bonus-card {
+            background-color: var(--bg-secondary);
+            border-radius: var(--border-radius-medium);
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border: 1px solid var(--border-color);
+        }
+        .bonus-card img { width: 48px; height: 48px; border-radius: 6px; background-color: var(--bg-tertiary); object-fit: cover;}
+        .bonus-card .info { flex-grow: 0; }
+        .bonus-card .info .slot-name-input { background: none; border: none; color: var(--text-primary); padding: 0; font-size: 1.1em; width: 100%; font-weight: 500; }
+        .bonus-card .info .slot-name-input:focus { outline: none; }
+        .bonus-card .info .provider { font-size: 0.85em; color: var(--text-secondary); }
+        
+        .bonus-card .data-fields { display: flex; gap: 20px; }
+        .bonus-card .field { display: flex; flex-direction: column; }
+        .bonus-card .field .label { font-size: 0.8em; color: var(--text-secondary); }
+        .bonus-card .field input { background-color: transparent; border: 1px solid transparent; border-bottom-color: var(--border-color); border-radius: 0; padding: 4px 0; width: 100px; text-align: left; font-size: 1em; color: var(--text-primary); font-family: inherit;}
+        .bonus-card .field input:focus { outline: none; border-bottom-color: var(--accent-primary); }
+        
+        .bonus-card .multiplier-display { font-size: 1.1em; font-weight: 600; width: 80px; text-align: right; margin-left: auto;}
+        .bonus-card .multiplier-display.high { color: var(--accent-secondary); }
+        .bonus-card .multiplier-display.mid { color: var(--accent-warning); }
+        .bonus-card .multiplier-display.low { color: var(--accent-danger); }
+
+        .bonus-card .delete-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2em; padding: 5px; transition: color 0.2s; }
+        .bonus-card .delete-btn:hover { color: var(--accent-danger); }
+        
+        .algolia-dropdown { position: absolute; z-index: 2000; max-height: 280px; overflow-y: auto; border-radius: var(--border-radius-medium); background: var(--bg-tertiary); backdrop-filter: blur(6px); padding: 5px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); border: 1px solid var(--border-color); }
+        .algolia-dropdown .provider-group-title { padding: 8px 10px; font-weight: 600; color: var(--text-secondary); border-bottom: 1px solid var(--border-color); text-transform: uppercase; font-size: 0.75em; letter-spacing: 0.5px; position: sticky; top: -5px; background: var(--bg-tertiary); margin-bottom: 4px;}
+        .algolia-dropdown .slot-item { padding: 8px 10px; cursor: pointer; transition: background-color 0.1s ease; border-radius: 4px; font-size: 0.9em; }
+        .algolia-dropdown .slot-item:hover { background-color: var(--accent-primary); color: #0A0C10; }
+
+        /* Styles for Discord Login */
+        .auth-container {
+            padding: 20px;
+            border-radius: var(--border-radius-medium);
+            background: rgba(22, 27, 34, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color-light);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            height: 100%;
+        }
+        .discord-login-btn {
+            background-color: #5865F2; /* Discord brand color */
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: var(--border-radius-medium);
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background-color 0.2s ease;
+        }
+        .discord-login-btn:hover {
+            background-color: #4752C4;
+        }
+        .discord-login-btn i {
+            font-size: 1.3em;
+        }
+        #user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1em;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+        #user-info img {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+        }
+        #logout-btn {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+        }
+
+        .modal-content {
+            background-color: var(--bg-secondary);
+            padding: 30px;
+            border-radius: var(--border-radius-medium);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            max-width: 500px;
+            width: 90%;
+            border: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .modal-close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        #registeredUsersList {
+            list-style: none;
+            padding: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        #registeredUsersList li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color-light);
+        }
+
+        #registeredUsersList li:last-child {
+            border-bottom: none;
+        }
+
+        #registeredUsersList .user-info-display {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        #registeredUsersList .user-info-display .user-name {
+            font-weight: 500;
+            font-size: 1.1em;
+        }
+        #registeredUsersList .user-info-display .user-id {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            word-break: break-all; /* Ensure long IDs wrap */
+        }
+
+        .copy-user-id-btn {
+            background-color: var(--accent-primary);
+            color: #000;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s ease;
+        }
+        .copy-user-id-btn:hover {
+            background-color: #4a91e0;
+        }
+        #manageUsersBtn {
+            background: var(--accent-secondary);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <main class="main-content">
+            <div class="scrollable-content glass-container" id="main-content-area">
+                <!-- Content will be dynamically loaded here based on auth status -->
+                <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <input type="text" id="sessionName" placeholder="Bonus Hunt #4" style="background:none; border:none; color: var(--text-primary); font-size: 1.4em; font-weight: 600; padding:0;">
+                    <button id="addRowBtn" style="background:var(--accent-primary); color: #000; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: 500;">+ Ajouter Bonus</button>
+                </header>
+                <div id="bonus-cards-container">
+                    <!-- Les cartes de bonus seront injectées ici -->
+                </div>
+            </div>
+            <div id="auth-required-message" class="auth-container" style="display: none;">
+                <h3>Connectez-vous pour voir cette session.</h3>
+                <button id="discord-login-btn" class="discord-login-btn">
+                    <i class="fab fa-discord"></i> Se connecter avec Discord
+                </button>
+            </div>
+        </main>
+
+        <aside class="sidebar">
+            <div class="scrollable-content glass-container" id="sidebar-content-area">
+                <div id="user-info" style="display:none;">
+                    <img id="user-avatar" src="" alt="User Avatar">
+                    <span id="user-display-name"></span>
+                    <button id="logout-btn">Se déconnecter</button>
+                </div>
+                <h3>Progression de la Chasse</h3>
+                <button id="huntStatusButton" class="status-button">Chasse Terminée</button>
+                <div class="stats-grid">
+                    <div class="stat-block">
+                        <span class="label">Mise de Départ</span>
+                        <div class="value"><input type="number" id="initialBalanceInput" class="stat-input" value="0.00" step="0.01"> <span class="currency-symbol">€</span></div>
+                    </div>
+                    <div class="stat-block">
+                        <span class="label">Bonus Ouverts</span>
+                        <div id="statOpenedBonuses" class="value">0 / 0</div>
+                    </div>
+                    <div class="stat-block">
+                        <span class="label">Multi. Moyen</span>
+                        <div id="statAverageMultiplier" class="value">x0.00</div>
+                    </div>
+                    <div class="stat-block">
+                        <span class="label">Gains / Pertes</span>
+                        <div id="statProfitLoss" class="value">0.00 <span class="currency-symbol">€</span></div>
+                    </div>
+                    <div class="stat-block">
+                        <span class="label">Break-even Multiplier</span>
+                        <div id="statBreakEvenMulti" class="value">x0.00</div>
+                    </div>
+                     <div class="stat-block">
+                        <span class="label">ROI</span>
+                        <div id="statRoi" class="value">0.00%</div>
+                    </div>
+                    <div class="stat-block">
+                        <span class="label">Fin Potentielle</span>
+                        <div id="statPotentialEnd" class="value">0.00 <span class="currency-symbol">€</span></div>
+                    </div>
+                    <div class="stat-block">
+                        <span class="label">Mise Moyenne</span>
+                        <div id="statAverageBet" class="value">0.00 <span class="currency-symbol">€</span></div>
+                    </div>
+                    <div class="stat-block">
+                        <span class="label">Meilleure Machine</span>
+                        <div id="statBestSlot" class="value">-</div>
+                    </div>
+                </div>
+                 <h3>Classement Fournisseurs</h3>
+                <ul id="providerRankingList"></ul>
+                <button id="manageUsersBtn" style="display:none;">Gérer les utilisateurs</button>
+            </div>
+        </aside>
+    </div>
+    
+    <div id="algoliaDropdown" class="algolia-dropdown" style="display: none;"></div>
+
+    <!-- Registered Users Modal -->
+    <div id="registeredUsersModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <button class="modal-close-btn" id="closeUsersModalBtn">&times;</button>
+            <h3>Utilisateurs Enregistrés</h3>
+            <ul id="registeredUsersList">
+                <!-- Users will be listed here -->
+            </ul>
+            <p style="font-size: 0.9em; color: var(--text-secondary);">
+                Copiez l'ID utilisateur et ajoutez-le manuellement à la table `whitelists` dans Supabase pour autoriser l'édition.
+            </p>
+        </div>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        // --- Supabase Configuration ---
+        const SUPABASE_URL = 'https://rgepcvnzyzzowpkpmvxc.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJnZXBjdm56eXp6b3dwa3BtdnhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk0NzUwNjcsImV4cCI6MjA2NTA1MTA2N30.xTw_-HMvUcFzrrz01mihD7PHiUay9s2hYVNC6YgYpa4';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); // Correction ici : 'window.supabase' au lieu de 'Supabase'
+
+        // --- DOM Elements ---
+        const initialBalanceInput = document.getElementById('initialBalanceInput');
+        const sessionNameInput = document.getElementById('sessionName');
+        const huntStatusButton = document.getElementById('huntStatusButton');
+        const bonusCardsContainer = document.getElementById('bonus-cards-container');
+        const addRowBtn = document.getElementById('addRowBtn');
+        const algoliaDropdown = document.getElementById('algoliaDropdown');
+        const discordLoginBtn = document.getElementById('discord-login-btn');
+        const userInfoDiv = document.getElementById('user-info');
+        const userAvatar = document.getElementById('user-avatar');
+        const userDisplayName = document.getElementById('user-display-name');
+        const logoutBtn = document.getElementById('logout-btn');
+        const authRequiredMessage = document.getElementById('auth-required-message');
+        const mainContentArea = document.getElementById('main-content-area');
+        const sidebarContentArea = document.getElementById('sidebar-content-area');
+        const manageUsersBtn = document.getElementById('manageUsersBtn');
+        const registeredUsersModal = document.getElementById('registeredUsersModal');
+        const closeUsersModalBtn = document.getElementById('closeUsersModalBtn');
+        const registeredUsersList = document.getElementById('registeredUsersList');
+
+
+        // --- Stat Elements (déjà présents) ---
+        const statElements = {
+            openedBonuses: document.getElementById('statOpenedBonuses'),
+            averageMultiplier: document.getElementById('statAverageMultiplier'),
+            profitLoss: document.getElementById('statProfitLoss'),
+            breakEvenMulti: document.getElementById('statBreakEvenMulti'),
+            potentialEnd: document.getElementById('statPotentialEnd'),
+            averageBet: document.getElementById('statAverageBet'),
+            bestSlot: document.getElementById('statBestSlot'),
+            providerRankingList: document.getElementById('providerRankingList'),
+            roi: document.getElementById('statRoi'),
+            currencySymbols: document.querySelectorAll('.currency-symbol')
+        };
+        
+        // --- State Management ---
+        let sessionData = []; // Data for current bonuses
+        let huntIsActive = true;
+        let debounceTimer;
+        let currentAlgoliaInput = null;
+        let currentUser = null; // Supabase user object
+        let currentSession = null; // Current session object from Supabase
+        let accessMode = 'none'; // 'read', 'edit', 'owner', 'none'
+        let realtimeChannel = null; // Supabase realtime channel
+
+        const ALGOLIA_API_URL = 'https://m37m2qcrh0-dsn.algolia.net/1/indexes/freeSlots/query';
+        const ALGOLIA_HEADERS = {
+            'x-algolia-api-key': 'da9d2da4b154d0423374f859cfc77c71',
+            'x-algolia-application-id': 'M37M2QCRH0',
+            'Content-Type': 'application/json'
+        };
+        let algoliaCache = {};
+
+        // --- Auth & Access Control ---
+
+        /**
+         * Parses URL parameters to determine access mode.
+         * @returns {object} { type: 'read'|'edit'|'none', token: string|null }
+         */
+        const getAccessParams = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('read')) {
+                return { type: 'read', token: urlParams.get('read') };
+            } else if (urlParams.has('edit')) {
+                return { type: 'edit', token: urlParams.get('edit') };
+            }
+            return { type: 'none', token: null };
+        };
+
+        /**
+         * Sets UI elements based on current access mode.
+         * @param {string} mode - 'read', 'edit', 'owner'
+         * @param {boolean} isAuthenticated - Whether user is authenticated.
+         */
+        const setUIForAccessMode = (mode, isAuthenticated) => {
+            const isEditable = mode === 'edit' || mode === 'owner';
+            
+            sessionNameInput.disabled = !isEditable;
+            initialBalanceInput.disabled = !isEditable || !huntIsActive;
+            addRowBtn.style.display = isEditable ? 'inline-block' : 'none';
+            huntStatusButton.disabled = !isEditable;
+
+            // Disable inputs on bonus cards if not editable
+            document.querySelectorAll('.bonus-card').forEach(card => {
+                const betInput = card.querySelector('.bet-input');
+                const winningsInput = card.querySelector('.winnings-input');
+                const slotNameInput = card.querySelector('.slot-name-input');
+                const deleteBtn = card.querySelector('.delete-btn');
+
+                if (betInput) betInput.disabled = !isEditable;
+                if (winningsInput) winningsInput.disabled = !isEditable;
+                if (slotNameInput) slotNameInput.disabled = !isEditable;
+                if (deleteBtn) deleteBtn.style.display = isEditable ? 'block' : 'none';
+            });
+
+            // Show/hide main content vs auth message
+            if (mode !== 'none' || isAuthenticated) {
+                mainContentArea.style.display = 'block';
+                sidebarContentArea.style.display = 'block';
+                authRequiredMessage.style.display = 'none';
+            } else {
+                mainContentArea.style.display = 'none';
+                sidebarContentArea.style.display = 'none';
+                authRequiredMessage.style.display = 'flex';
+            }
+
+            // Show manage users button only for session owner
+            manageUsersBtn.style.display = mode === 'owner' ? 'block' : 'none';
+        };
+
+        /**
+         * Handles Discord login.
+         */
+        const signInWithDiscord = async () => {
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'discord',
+                options: {
+                    redirectTo: window.location.origin + window.location.pathname // Redirect back to current page
+                }
+            });
+            if (error) {
+                console.error("Error logging in:", error.message);
+                // In a real app, you'd show a user-friendly error message
+            }
+        };
+
+        /**
+         * Handles user logout.
+         */
+        const signOut = async () => {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                console.error("Error logging out:", error.message);
+            } else {
+                currentUser = null;
+                currentSession = null;
+                accessMode = 'none';
+                userInfoDiv.style.display = 'none';
+                userDisplayName.textContent = '';
+                userAvatar.src = '';
+                if (realtimeChannel) {
+                    supabase.removeChannel(realtimeChannel);
+                    realtimeChannel = null;
+                }
+                setUIForAccessMode('none', false);
+                sessionData = []; // Clear local data on logout
+                renderBonusCards();
+                calculateAndDisplayStats();
+                // Redirect to base URL to clear tokens
+                window.history.pushState({}, document.title, window.location.pathname);
+            }
+        };
+
+        /**
+         * Fetches session details based on read/edit token.
+         * @param {string} token - The read or edit token.
+         * @param {string} tokenType - 'read_token' or 'write_token'.
+         * @returns {object|null} The session object if found, otherwise null.
+         */
+        const fetchSessionByToken = async (token, tokenType) => {
+            const { data, error } = await supabase
+                .from('sessions')
+                .select('*')
+                .eq(tokenType, token)
+                .single();
+
+            if (error && error.code !== 'PGRST116') { // PGRST116 means no row found
+                console.error("Error fetching session by token:", error.message);
+                return null;
+            }
+            return data;
+        };
+
+        /**
+         * Fetches the current session data.
+         * Determines session based on URL params or if user is logged in.
+         * Checks whitelist for edit access.
+         */
+        const loadSession = async () => {
+            const params = getAccessParams();
+            let session = null;
+            let currentUserId = currentUser ? currentUser.id : null;
+
+            if (params.type !== 'none' && params.token) {
+                // Try to load session via token
+                session = await fetchSessionByToken(params.token, params.type === 'read' ? 'read_token' : 'write_token');
+                if (session) {
+                    currentSession = session;
+                    if (currentUserId && session.owner_id === currentUserId) {
+                        accessMode = 'owner'; // User is the owner
+                    } else if (params.type === 'read') {
+                        accessMode = 'read';
+                    } else if (params.type === 'edit') {
+                        // Check if user is whitelisted for edit access
+                        const { data: whitelistEntry, error } = await supabase
+                            .from('whitelists')
+                            .select('id')
+                            .eq('session_id', session.id)
+                            .eq('user_id', currentUserId)
+                            .single();
+                        if (!error && whitelistEntry) {
+                            accessMode = 'edit';
+                        } else {
+                            // If not whitelisted, revert to read-only for this token
+                            accessMode = 'read';
+                            console.warn("User not whitelisted for edit access, switching to read-only.");
+                        }
+                    }
+                } else {
+                    console.warn("Session not found for token or token invalid.");
+                    accessMode = 'none';
+                }
+            } else if (currentUserId) {
+                // If no token, check if user owns any session, or create one
+                const { data, error } = await supabase
+                    .from('sessions')
+                    .select('*')
+                    .eq('owner_id', currentUserId)
+                    .single();
+
+                if (!error && data) {
+                    currentSession = data;
+                    accessMode = 'owner';
+                } else {
+                    console.log("No session found for this user, creating a new one.");
+                    await createNewSessionForUser(currentUserId);
+                }
+            } else {
+                accessMode = 'none';
+            }
+
+            if (currentSession) {
+                sessionNameInput.value = currentSession.name || `Bonus Hunt du ${new Date().toLocaleDateString('fr-FR')}`;
+                // Load bonus data
+                await fetchBonuses();
+                // Setup realtime
+                setupRealtimeListener();
+            }
+            setUIForAccessMode(accessMode, currentUser !== null);
+        };
+
+        /**
+         * Creates a new session for a given user.
+         * @param {string} userId - The ID of the session owner.
+         */
+        const createNewSessionForUser = async (userId) => {
+            const newSessionName = `Bonus Hunt du ${new Date().toLocaleDateString('fr-FR')}`;
+            const readToken = generateRandomToken();
+            const writeToken = generateRandomToken();
+
+            const { data, error } = await supabase
+                .from('sessions')
+                .insert([
+                    { name: newSessionName, owner_id: userId, read_token: readToken, write_token: writeToken }
+                ])
+                .select()
+                .single();
+
+            if (error) {
+                console.error("Error creating new session:", error.message);
+                return;
+            }
+
+            currentSession = data;
+            accessMode = 'owner';
+            sessionNameInput.value = newSessionName;
+            console.log("New session created:", currentSession);
+
+            // Add owner to whitelist
+            await addOwnerToWhitelist(currentSession.id, userId);
+
+            // Update URL to reflect the new session's write token for owner
+            const newUrl = `${window.location.origin}${window.location.pathname}?edit=${writeToken}`;
+            window.history.pushState({}, document.title, newUrl);
+
+            fetchBonuses(); // Fetch any (initially empty) bonuses
+            setupRealtimeListener();
+        };
+
+        /**
+         * Adds the session owner to the whitelist.
+         * @param {string} sessionId - The ID of the session.
+         * @param {string} ownerId - The ID of the owner.
+         */
+        const addOwnerToWhitelist = async (sessionId, ownerId) => {
+            const { error } = await supabase
+                .from('whitelists')
+                .insert([{ session_id: sessionId, user_id: ownerId }]);
+            if (error && error.code !== '23505') { // 23505 is unique violation, meaning already whitelisted
+                console.error("Error adding owner to whitelist:", error.message);
+            } else if (!error) {
+                console.log("Owner added to whitelist.");
+            }
+        };
+
+        /**
+         * Generates a random token.
+         * @returns {string} A random string.
+         */
+        const generateRandomToken = () => {
+            return Array.from(crypto.getRandomValues(new Uint8Array(10)))
+                .map(b => b.toString(36))
+                .join('');
+        };
+
+
+        /**
+         * Fetches bonus data from Supabase for the current session.
+         */
+        const fetchBonuses = async () => {
+            if (!currentSession) return;
+            const { data, error } = await supabase
+                .from('bonuses')
+                .select('*')
+                .eq('session_id', currentSession.id)
+                .order('id', { ascending: true }); // Order by ID to maintain insertion order
+
+            if (error) {
+                console.error("Error fetching bonuses:", error.message);
+            } else {
+                sessionData = data.map(b => ({
+                    id: b.id, // Supabase ID is bigint, but we use it as unique identifier
+                    machineName: b.machine_name,
+                    provider: b.provider, // This is a string from DB, not the full algolia hit object
+                    bet: b.bet,
+                    winnings: b.winnings,
+                    // Re-create algoliaHit from stored provider and machine_name for display consistency
+                    algoliaHit: b.machine_name && b.provider ? { name: b.machine_name, provider: { name: b.provider }, thumbnail_url: 'https://placehold.co/96x96/161B22/7D8590?text=?' } : null
+                }));
+                if (sessionData.length === 0) {
+                    addInitialRows(5, false); // Add initial rows if session is empty, but don't save to DB yet
+                }
+                renderBonusCards();
+                updateStatsAndSave();
+            }
+        };
+
+        /**
+         * Sets up a realtime listener for bonus updates on the current session.
+         */
+        const setupRealtimeListener = () => {
+            if (realtimeChannel) {
+                supabase.removeChannel(realtimeChannel); // Clean up previous listener
+            }
+
+            if (!currentSession || accessMode === 'edit' || accessMode === 'owner') {
+                // No realtime needed for edit/owner mode, or if no session
+                return;
+            }
+            
+            realtimeChannel = supabase
+                .channel(`session-${currentSession.id}-bonuses`)
+                .on('postgres_changes', { 
+                    event: '*', 
+                    schema: 'public', 
+                    table: 'bonuses',
+                    filter: `session_id=eq.${currentSession.id}` // Listen only for this session
+                }, payload => {
+                    console.log('Realtime change received!', payload);
+                    // Only update if change comes from another user (or from Supabase directly)
+                    // and if we are in read-only mode to prevent UI conflicts
+                    if (accessMode === 'read') {
+                        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                            const newBonus = payload.new;
+                            const existingIndex = sessionData.findIndex(b => b.id === newBonus.id);
+                            const transformedBonus = {
+                                id: newBonus.id,
+                                machineName: newBonus.machine_name,
+                                provider: newBonus.provider,
+                                bet: newBonus.bet,
+                                winnings: newBonus.winnings,
+                                algoliaHit: newBonus.machine_name && newBonus.provider ? { name: newBonus.machine_name, provider: { name: newBonus.provider }, thumbnail_url: 'https://placehold.co/96x96/161B22/7D8590?text=?' } : null
+                            };
+
+                            if (existingIndex > -1) {
+                                sessionData[existingIndex] = transformedBonus;
+                            } else {
+                                sessionData.push(transformedBonus);
+                                sessionData.sort((a,b) => a.id - b.id); // Re-sort to maintain order
+                            }
+                        } else if (payload.eventType === 'DELETE') {
+                            sessionData = sessionData.filter(b => b.id !== payload.old.id);
+                        }
+                        renderBonusCards();
+                        calculateAndDisplayStats();
+                    }
+                })
+                .subscribe();
+            console.log("Subscribed to realtime changes for session:", currentSession.id);
+        };
+
+        // --- Core Functions ---
+        // saveState now saves to Supabase
+        const saveState = async () => {
+            if (!currentSession || (accessMode !== 'edit' && accessMode !== 'owner')) {
+                // If no session or not editable, don't save state
+                return;
+            }
+
+            try {
+                // Update session name if it changed
+                if (currentSession.name !== sessionNameInput.value) {
+                    const { error: sessionUpdateError } = await supabase
+                        .from('sessions')
+                        .update({ name: sessionNameInput.value })
+                        .eq('id', currentSession.id);
+                    if (sessionUpdateError) console.error("Error updating session name:", sessionUpdateError.message);
+                    currentSession.name = sessionNameInput.value; // Update local state
+                }
+
+                // Update bonus data to Supabase
+                // We'll iterate and update/insert each bonus
+                for (const bonus of sessionData) {
+                    const bonusToSave = {
+                        session_id: currentSession.id,
+                        machine_name: bonus.machineName,
+                        provider: bonus.algoliaHit?.provider.name || bonus.provider, // Use algolia provider if available, otherwise existing
+                        bet: bonus.bet,
+                        winnings: bonus.winnings,
+                        user_id: currentUser ? currentUser.id : null // Store user who last modified/created
+                    };
+
+                    if (typeof bonus.id === 'number' && bonus.id < Date.now() - 1000) { // Existing bonus (approx. 1 sec buffer for new client-side IDs)
+                        const { error } = await supabase
+                            .from('bonuses')
+                            .update(bonusToSave)
+                            .eq('id', bonus.id);
+                        if (error) console.error(`Error updating bonus ${bonus.id}:`, error.message);
+                    } else { // New bonus
+                        const { data, error } = await supabase
+                            .from('bonuses')
+                            .insert([bonusToSave])
+                            .select()
+                            .single();
+                        if (error) {
+                            console.error("Error inserting bonus:", error.message);
+                        } else {
+                            bonus.id = data.id; // Update local ID with Supabase ID
+                        }
+                    }
+                }
+                console.log("State saved to Supabase.");
+
+            } catch (e) {
+                console.error("Failed to save state to Supabase:", e);
+            }
+        };
+
+        const updateStatsAndSave = () => {
+            calculateAndDisplayStats();
+            saveState(); // This now saves to Supabase if permission allows
+        };
+
+        // loadState is now replaced by fetchBonuses and initial session loading
+        const loadState = async () => {
+            // Initial UI setup before authentication/session loading
+            setUIForAccessMode('none', false);
+
+            const { data: { user } } = await supabase.auth.getUser();
+            currentUser = user;
+            if (currentUser) {
+                userInfoDiv.style.display = 'flex';
+                userDisplayName.textContent = currentUser.user_metadata.full_name || currentUser.email;
+                userAvatar.src = currentUser.user_metadata.avatar_url || 'https://placehold.co/32x32/161B22/7D8590?text=?';
+                console.log("Logged in as:", currentUser.user_metadata.full_name, "(", currentUser.id, ")");
+            }
+
+            await loadSession(); // This will fetch bonuses and set up realtime
+            updateHuntStatusUI(); // Ensure hunt status button is correct
+        };
+
+        const addInitialRows = (count, shouldSave = true) => {
+            for (let i = 0; i < count; i++) {
+                sessionData.push({ id: Date.now() + Math.random(), machineName: '', provider: '', bet: null, winnings: null, algoliaHit: null });
+            }
+            if (shouldSave) {
+                renderBonusCards();
+                updateStatsAndSave();
+            }
+        };
+        
+        // Add bonus to Supabase
+        const addBonus = async (shouldRender = true) => {
+            if (accessMode !== 'edit' && accessMode !== 'owner') {
+                console.warn("Permission denied: Cannot add bonus in read-only mode.");
+                return;
+            }
+
+            const newBonus = {
+                session_id: currentSession.id,
+                machine_name: '',
+                provider: '',
+                bet: null,
+                winnings: null,
+                user_id: currentUser ? currentUser.id : null
+            };
+
+            const { data, error } = await supabase
+                .from('bonuses')
+                .insert([newBonus])
+                .select()
+                .single();
+
+            if (error) {
+                console.error("Error adding bonus to Supabase:", error.message);
+                return;
+            }
+
+            // Add the new bonus to local sessionData with its Supabase ID
+            sessionData.push({
+                id: data.id,
+                machineName: data.machine_name,
+                provider: data.provider,
+                bet: data.bet,
+                winnings: data.winnings,
+                algoliaHit: null // Initialize algoliaHit as null, will be set on user interaction
+            });
+            sessionData.sort((a,b) => a.id - b.id); // Keep sorted by ID
+
+            if (shouldRender) {
+                renderBonusCards();
+                updateStatsAndSave(); // This will save current data, including the new one
+            }
+        };
+
+        // Delete bonus from Supabase
+        const deleteBonus = async (id) => {
+            if (accessMode !== 'edit' && accessMode !== 'owner') {
+                console.warn("Permission denied: Cannot delete bonus in read-only mode.");
+                return;
+            }
+
+            const { error } = await supabase
+                .from('bonuses')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                console.error(`Error deleting bonus ${id} from Supabase:`, error.message);
+                return;
+            }
+
+            sessionData = sessionData.filter(bonus => bonus.id !== id);
+            renderBonusCards();
+            updateStatsAndSave();
+        };
+
+        // Update bonus data in Supabase
+        const updateBonusData = async (id, field, value) => {
+            if (accessMode !== 'edit' && accessMode !== 'owner') {
+                console.warn("Permission denied: Cannot update bonus in read-only mode.");
+                return;
+            }
+            const bonus = sessionData.find(b => b.id === id);
+            if (!bonus) return;
+            
+            let updatePayload = {};
+
+            if (field === 'bet' || field === 'winnings') {
+                bonus[field] = value === '' ? null : parseFloat(value);
+                updatePayload[field] = bonus[field];
+            } else if (field === 'machineName') {
+                bonus[field] = value;
+                updatePayload.machine_name = value; // Supabase column name
+                if (bonus.algoliaHit?.name !== value) {
+                    bonus.algoliaHit = null;
+                    updatePayload.provider = null; // Clear provider if machine name changes
+                }
+            } else if (field === 'algoliaHit') {
+                bonus.algoliaHit = value;
+                bonus.machineName = value ? value.name : '';
+                bonus.provider = value ? value.provider.name : ''; // Store provider name as string
+                updatePayload.machine_name = bonus.machineName;
+                updatePayload.provider = bonus.provider;
+            }
+
+            // Update user_id for the last person who modified it
+            updatePayload.user_id = currentUser ? currentUser.id : null;
+
+            const { error } = await supabase
+                .from('bonuses')
+                .update(updatePayload)
+                .eq('id', id);
+
+            if (error) {
+                console.error(`Error updating bonus ${id} in Supabase:`, error.message);
+            }
+        };
+        
+        const updateSingleCard = (id) => {
+             const bonus = sessionData.find(b => b.id === id);
+             if(!bonus) return;
+
+             const card = bonusCardsContainer.querySelector(`[data-id="${bonus.id}"]`);
+             if(!card) return;
+
+             const multiplier = calculateMultiplier(bonus.bet, bonus.winnings);
+             let multiClass = '';
+             if (multiplier > 0) {
+                if (multiplier >= 100) multiClass = 'high';
+                else if (multiplier >= 20) multiClass = 'mid';
+                else multiClass = 'low';
+             }
+             
+             card.querySelector('.slot-name-input').value = bonus.machineName || '';
+             // Use algoliaHit's provider.name if available, otherwise fallback to the stored 'provider' string
+             card.querySelector('.provider').textContent = bonus.algoliaHit?.provider.name || bonus.provider || 'Fournisseur';
+             card.querySelector('img').src = bonus.algoliaHit?.thumbnail_url || 'https://placehold.co/96x96/161B22/7D8590?text=?';
+             card.querySelector('.multiplier-display').textContent = `x${multiplier.toFixed(2)}`;
+             card.querySelector('.multiplier-display').className = `multiplier-display ${multiClass}`;
+
+             // Re-apply disabled state after rendering
+             setUIForAccessMode(accessMode, currentUser !== null);
+        };
+
+        const renderBonusCards = () => {
+            bonusCardsContainer.innerHTML = '';
+            sessionData.forEach(bonus => {
+                const card = document.createElement('div');
+                card.className = 'bonus-card';
+                card.dataset.id = bonus.id;
+                
+                const multiplier = calculateMultiplier(bonus.bet, bonus.winnings);
+                let multiClass = '';
+                if (multiplier > 0) {
+                   if (multiplier >= 100) multiClass = 'high';
+                   else if (multiplier >= 20) multiClass = 'mid';
+                   else multiClass = 'low';
+                }
+
+                card.innerHTML = `
+                    <img src="${bonus.algoliaHit?.thumbnail_url || 'https://placehold.co/96x96/161B22/7D8590?text=?'}" alt="Slot" onerror="this.src='https://placehold.co/96x96/161B22/7D8590?text=?'">
+                    <div class="info">
+                        <input type="text" class="slot-name-input" value="${bonus.machineName || ''}" placeholder="Nom de la machine...">
+                        <div class="provider">${bonus.algoliaHit?.provider.name || bonus.provider || 'Fournisseur'}</div>
+                    </div>
+                    <div class="data-fields">
+                        <div class="field">
+                            <label class="label">Mise</label>
+                            <input type="number" class="bet-input" value="${bonus.bet !== null ? bonus.bet.toFixed(2) : ''}" placeholder="0.00" step="0.01">
+                        </div>
+                        <div class="field">
+                            <label class="label">Gains</label>
+                            <input type="number" class="winnings-input" value="${bonus.winnings !== null ? bonus.winnings.toFixed(2) : ''}" placeholder="0.00" step="0.01">
+                        </div>
+                    </div>
+                    <div class="multiplier-display ${multiClass}">x${multiplier.toFixed(2)}</div>
+                    <button class="delete-btn"><i class="fas fa-trash"></i></button>
+                `;
+                bonusCardsContainer.appendChild(card);
+            });
+            setUIForAccessMode(accessMode, currentUser !== null); // Re-apply disabled state after rendering
+        };
+
+        const calculateMultiplier = (bet, winnings) => {
+            bet = parseFloat(bet);
+            winnings = parseFloat(winnings);
+            if (bet > 0 && winnings >= 0) {
+                return winnings / bet;
+            }
+            return 0;
+        };
+
+        const calculateAndDisplayStats = () => {
+            const initialBalance = parseFloat(initialBalanceInput.value) || 0;
+            let totalBet = 0, totalWinnings = 0, openedBonuses = 0, totalBonuses = 0;
+            let bestSlot = { name: '-', multi: 0 };
+            const providerPerformance = {};
+
+            sessionData.forEach(bonus => {
+                const bet = parseFloat(bonus.bet);
+                const winnings = parseFloat(bonus.winnings);
+
+                if (bet > 0) {
+                    totalBonuses++;
+                    totalBet += bet;
+                    if (winnings !== null && !isNaN(winnings)) {
+                        openedBonuses++;
+                        totalWinnings += winnings;
+                        const multi = calculateMultiplier(bet, winnings);
+                        
+                        if (multi > bestSlot.multi) {
+                            bestSlot = { name: bonus.machineName || 'Inconnue', multi };
+                        }
+
+                        // Use stored provider name if algoliaHit not present
+                        const provider = bonus.algoliaHit?.provider.name || bonus.provider; 
+                        if (provider) {
+                            if (!providerPerformance[provider]) providerPerformance[provider] = { multiSum: 0, count: 0 };
+                            providerPerformance[provider].multiSum += multi;
+                            providerPerformance[provider].count++;
+                        }
+                    }
+                }
+            });
+
+            const profitLoss = totalWinnings - totalBet;
+            const averageBet = totalBonuses > 0 ? totalBet / totalBonuses : 0;
+            const averageMultiplier = openedBonuses > 0 ? sessionData.reduce((acc, b) => acc + (b.winnings !== null && b.bet > 0 ? calculateMultiplier(b.bet, b.winnings) : 0), 0) / openedBonuses : 0;
+            const breakEvenMulti = initialBalance > 0 && totalBet > 0 ? initialBalance / totalBet : 0;
+            const potentialEnd = initialBalance + profitLoss; // Corrected: initialBalance + profitLoss
+            const roi = totalBet > 0 ? (profitLoss / totalBet) * 100 : 0;
+
+            statElements.openedBonuses.textContent = `${openedBonuses} / ${totalBonuses}`;
+            statElements.averageMultiplier.textContent = `x${averageMultiplier.toFixed(2)}`;
+            
+            statElements.profitLoss.innerHTML = `${profitLoss.toFixed(2)} <span class="currency-symbol">€</span>`;
+            statElements.profitLoss.className = `value ${profitLoss >= 0 ? 'positive' : 'negative'}`;
+            if(profitLoss === 0) statElements.profitLoss.classList.remove('positive', 'negative');
+            
+            statElements.breakEvenMulti.textContent = `x${breakEvenMulti.toFixed(2)}`;
+            
+            statElements.potentialEnd.innerHTML = `${potentialEnd.toFixed(2)} <span class="currency-symbol">€</span>`;
+            statElements.potentialEnd.className = `value ${potentialEnd >= 0 ? '' : 'negative'}`;
+
+            statElements.averageBet.innerHTML = `${averageBet.toFixed(2)} <span class="currency-symbol">€</span>`;
+            statElements.bestSlot.textContent = bestSlot.name;
+            
+            statElements.roi.textContent = `${roi.toFixed(2)}%`;
+            statElements.roi.className = `value ${roi >= 0 ? 'positive' : 'negative'}`;
+            if(roi === 0) statElements.roi.classList.remove('positive', 'negative');
+            
+            renderProviderRanking(providerPerformance);
+        };
+        
+        const renderProviderRanking = (performanceData) => {
+            const list = statElements.providerRankingList;
+            list.innerHTML = '';
+            const ranked = Object.entries(performanceData)
+                .map(([name, data]) => ({ name, avgMulti: data.count > 0 ? data.multiSum / data.count : 0 }))
+                .filter(p => p.avgMulti > 0)
+                .sort((a, b) => b.avgMulti - a.avgMulti);
+
+            const medals = ['gold', 'silver', 'bronze'];
+            ranked.slice(0, 5).forEach((provider, index) => {
+                const item = document.createElement('li');
+                item.className = 'provider-rank-item';
+                item.innerHTML = `
+                    <span class="rank-medal ${medals[index] || ''}">${index < 3 ? `<i class="fas fa-medal"></i>` : ''}</span>
+                    <span class="rank-name">${provider.name}</span>
+                    <span class="rank-multi">x${provider.avgMulti.toFixed(2)}</span>
+                `;
+                list.appendChild(item);
+            });
+        };
+
+        const updateHuntStatusUI = async () => {
+            if (!currentSession || (accessMode !== 'edit' && accessMode !== 'owner')) {
+                // If not session owner, disable status button and derive status from DB
+                huntStatusButton.disabled = true;
+                if (currentSession) {
+                    huntIsActive = currentSession.is_active; // Assuming 'is_active' column in sessions table
+                } else {
+                    huntIsActive = false; // Default if no session
+                }
+            } else {
+                huntStatusButton.disabled = false;
+                // Owner can toggle status, update DB
+                if (currentSession) {
+                    const { error } = await supabase
+                        .from('sessions')
+                        .update({ is_active: huntIsActive })
+                        .eq('id', currentSession.id);
+                    if (error) console.error("Error updating hunt status:", error.message);
+                }
+            }
+
+            huntStatusButton.textContent = huntIsActive ? "Chasse en cours..." : "Chasse Terminée";
+            huntStatusButton.className = `status-button ${huntIsActive ? 'in-progress' : 'completed'}`;
+            initialBalanceInput.disabled = !huntIsActive || (accessMode !== 'edit' && accessMode !== 'owner');
+        };
+        
+        // --- Algolia Functions ---
+        const handleSlotNameInput = async (e) => {
+            if (accessMode !== 'edit' && accessMode !== 'owner') return; // Do not allow input in read-only
+            currentAlgoliaInput = e.target;
+            const query = currentAlgoliaInput.value.trim();
+            const id = parseFloat(currentAlgoliaInput.closest('.bonus-card').dataset.id);
+            
+            // Only update local state here, actual Supabase update happens on selectAlgoliaSlot
+            const bonus = sessionData.find(b => b.id === id);
+            if(bonus) {
+                bonus.machineName = query;
+                if (bonus.algoliaHit?.name !== query) { // Clear algoliaHit if name changed manually
+                    bonus.algoliaHit = null;
+                }
+            }
+            
+            if (query.length < 2) { hideAlgoliaDropdown(); return; }
+            positionAlgoliaDropdown(currentAlgoliaInput);
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => fetchAlgoliaSuggestions(query), 300);
+        };
+
+        const fetchAlgoliaSuggestions = async (query) => {
+            showAlgoliaDropdownMessage("Chargement...");
+            if (algoliaCache[query]) { renderAlgoliaDropdown(algoliaCache[query]); return; }
+            try {
+                const response = await fetch(ALGOLIA_API_URL, { method: 'POST', headers: ALGOLIA_HEADERS, body: JSON.stringify({ query, hitsPerPage: 30 }) });
+                const data = await response.json();
+                algoliaCache[query] = data.hits;
+                renderAlgoliaDropdown(data.hits);
+            } catch (error) { showAlgoliaDropdownMessage("Erreur de recherche."); }
+        };
+
+        const renderAlgoliaDropdown = (hits) => {
+            algoliaDropdown.innerHTML = '';
+            if (!hits || hits.length === 0) { showAlgoliaDropdownMessage("Aucun jeu trouvé."); return; }
+            
+            const groupedByProvider = hits.reduce((acc, hit) => {
+                const providerName = hit.provider?.name || 'Autre';
+                if (!acc[providerName]) acc[providerName] = [];
+                acc[providerName].push(hit);
+                return acc;
+            }, {});
+
+            Object.keys(groupedByProvider).sort().forEach(providerName => {
+                const titleEl = document.createElement('div');
+                titleEl.className = 'provider-group-title';
+                titleEl.textContent = providerName;
+                algoliaDropdown.appendChild(titleEl);
+
+                groupedByProvider[providerName].forEach(hit => {
+                    const itemEl = document.createElement('div');
+                    itemEl.className = 'slot-item';
+                    itemEl.textContent = hit.name;
+                    itemEl.onmousedown = (e) => { e.preventDefault(); selectAlgoliaSlot(hit); };
+                    algoliaDropdown.appendChild(itemEl);
+                });
+            });
+        };
+
+        const selectAlgoliaSlot = async (hit) => {
+            if (!currentAlgoliaInput) return;
+            const id = parseFloat(currentAlgoliaInput.closest('.bonus-card').dataset.id);
+            
+            // Update local state and then Supabase
+            const bonus = sessionData.find(b => b.id === id);
+            if(bonus) {
+                bonus.machineName = hit.name;
+                bonus.algoliaHit = hit;
+                bonus.provider = hit.provider.name; // Store provider name as string
+            }
+            
+            hideAlgoliaDropdown();
+            updateSingleCard(id); 
+            await updateBonusData(id, 'algoliaHit', hit); // Update Supabase with the full hit (or relevant parts)
+            updateStatsAndSave();
+        };
+
+        const positionAlgoliaDropdown = (input) => {
+            const rect = input.getBoundingClientRect();
+            algoliaDropdown.style.top = `${rect.bottom + 4}px`;
+            algoliaDropdown.style.left = `${rect.left}px`;
+            algoliaDropdown.style.width = `${rect.width}px`;
+            algoliaDropdown.style.display = 'block';
+        };
+        const hideAlgoliaDropdown = () => { algoliaDropdown.style.display = 'none'; };
+        const showAlgoliaDropdownMessage = (message) => {
+            algoliaDropdown.innerHTML = `<div style="padding:10px;text-align:center;color:var(--text-secondary);">${message}</div>`;
+             if (currentAlgoliaInput) positionAlgoliaDropdown(currentAlgoliaInput);
+        };
+        
+        // --- Registered Users Modal Functions ---
+        const openRegisteredUsersModal = async () => {
+            if (!currentSession || accessMode !== 'owner') return;
+
+            registeredUsersList.innerHTML = '';
+            // Fetch distinct user_ids from the bonuses table for the current session
+            const { data: bonusUsers, error: bonusUsersError } = await supabase
+                .from('bonuses')
+                .select('user_id')
+                .eq('session_id', currentSession.id);
+
+            if (bonusUsersError) {
+                console.error("Error fetching distinct users from bonuses:", bonusUsersError.message);
+                return;
+            }
+
+            const uniqueUserIds = [...new Set(bonusUsers.map(b => b.user_id).filter(Boolean))];
+            
+            // Also fetch whitelisted users for the current session
+            const { data: whitelistedUsers, error: whitelistError } = await supabase
+                .from('whitelists')
+                .select('user_id')
+                .eq('session_id', currentSession.id);
+            
+            if (whitelistError) {
+                console.error("Error fetching whitelisted users:", whitelistError.message);
+                return;
+            }
+
+            const whitelistedUserIds = new Set(whitelistedUsers.map(w => w.user_id));
+
+            // Combine all unique user IDs that have interacted with the session (owner or bonus contributor)
+            const allRelevantUserIds = [...new Set([...uniqueUserIds, currentSession.owner_id].filter(Boolean))];
+
+            if (allRelevantUserIds.length === 0) {
+                registeredUsersList.innerHTML = '<li style="color: var(--text-secondary); text-align: center;">Aucun utilisateur enregistré pour cette session.</li>';
+            } else {
+                for (const userId of allRelevantUserIds) {
+                    // Try to fetch user metadata from Supabase auth.users table (if accessible by policy)
+                    // Note: Supabase's 'auth.users' table often requires admin privileges or RLS.
+                    // For simplicity and client-side access, we'll try to get their latest display name
+                    // from a bonus entry, or just use their ID.
+                    let displayName = `Utilisateur inconnu (${userId.substring(0, 8)}...)`; // Default fallback
+
+                    // Attempt to get user_metadata from last bonus they created/modified
+                    const { data: userBonus, error: userBonusError } = await supabase
+                        .from('bonuses')
+                        .select('user_id, profiles(full_name)') // Assuming 'profiles' table linked to auth.users
+                        .eq('user_id', userId)
+                        .eq('session_id', currentSession.id)
+                        .not('user_id', 'is', null)
+                        .order('id', { ascending: false }) // Get most recent entry
+                        .limit(1)
+                        .single();
+                    
+                    if (!userBonusError && userBonus && userBonus.profiles && userBonus.profiles.full_name) {
+                         displayName = userBonus.profiles.full_name;
+                    } else if (userId === currentSession.owner_id && currentUser) {
+                        // If it's the owner and we have their local user info
+                        displayName = currentUser.user_metadata.full_name || currentUser.email;
+                    }
+
+                    const isOwner = userId === currentSession.owner_id;
+                    const isWhitelisted = whitelistedUserIds.has(userId);
+
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <div class="user-info-display">
+                            <span class="user-name">${displayName} ${isOwner ? '(Propriétaire)' : ''}</span>
+                            <span class="user-id">${userId}</span>
+                        </div>
+                        <button class="copy-user-id-btn" data-userid="${userId}">
+                            ${isWhitelisted ? 'Whitelisté' : 'Copier ID'}
+                        </button>
+                    `;
+                    registeredUsersList.appendChild(li);
+                }
+            }
+
+            registeredUsersModal.style.display = 'flex';
+        };
+
+        const closeRegisteredUsersModal = () => {
+            registeredUsersModal.style.display = 'none';
+        };
+
+        // --- Event Listeners ---
+        const setupEventListeners = () => {
+            addRowBtn.addEventListener('click', addBonus);
+            
+            huntStatusButton.addEventListener('click', async () => {
+                if (accessMode === 'edit' || accessMode === 'owner') {
+                    huntIsActive = !huntIsActive;
+                    // Update Supabase for session 'is_active' status
+                    const { error } = await supabase
+                        .from('sessions')
+                        .update({ is_active: huntIsActive })
+                        .eq('id', currentSession.id);
+                    if (error) {
+                        console.error("Error updating hunt status in Supabase:", error.message);
+                    } else {
+                        currentSession.is_active = huntIsActive; // Update local state
+                        updateHuntStatusUI();
+                        updateStatsAndSave();
+                    }
+                } else {
+                    console.warn("Permission denied: Cannot change hunt status in read-only mode.");
+                }
+            });
+            
+            initialBalanceInput.addEventListener('change', updateStatsAndSave);
+            sessionNameInput.addEventListener('change', saveState);
+
+            bonusCardsContainer.addEventListener('input', async (e) => {
+                const card = e.target.closest('.bonus-card');
+                if (!card) return;
+                const id = parseFloat(card.dataset.id);
+
+                if (e.target.classList.contains('slot-name-input')) {
+                    handleSlotNameInput(e); // This will update local state for input, not Supabase yet
+                } else if (e.target.classList.contains('bet-input') || e.target.classList.contains('winnings-input')) {
+                    const field = e.target.classList.contains('bet-input') ? 'bet' : 'winnings';
+                    // Update local state immediately for responsiveness
+                    const bonus = sessionData.find(b => b.id === id);
+                    if (bonus) {
+                        bonus[field] = e.target.value === '' ? null : parseFloat(e.target.value);
+                    }
+                    updateSingleCard(id); // Update UI for multiplier immediately
+                    await updateBonusData(id, field, e.target.value); // Then update Supabase
+                    updateStatsAndSave(); // Recalculate stats and save current state (Supabase)
+                }
+            });
+            
+            bonusCardsContainer.addEventListener('focusin', (e) => {
+                if (e.target.classList.contains('slot-name-input')) {
+                   currentAlgoliaInput = e.target;
+                   if(currentAlgoliaInput.value.length > 2) positionAlgoliaDropdown(currentAlgoliaInput);
+                }
+            });
+            
+            bonusCardsContainer.addEventListener('change', (e) => { 
+                 if (e.target.type === 'number') {
+                    const value = parseFloat(e.target.value);
+                    e.target.value = isNaN(value) ? '' : value.toFixed(2);
+                    // SaveState already called by input event listener for bet/winnings
+                    // But explicitly call here for initialBalanceInput and others if needed
+                    saveState(); 
+                }
+            });
+
+            bonusCardsContainer.addEventListener('click', (e) => {
+                if (e.target.closest('.delete-btn')) {
+                    const card = e.target.closest('.bonus-card');
+                    if (card) deleteBonus(parseFloat(card.dataset.id));
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!algoliaDropdown.contains(e.target) && e.target !== currentAlgoliaInput) {
+                    hideAlgoliaDropdown();
+                }
+            });
+
+            discordLoginBtn.addEventListener('click', signInWithDiscord);
+            logoutBtn.addEventListener('click', signOut);
+
+            manageUsersBtn.addEventListener('click', openRegisteredUsersModal);
+            closeUsersModalBtn.addEventListener('click', closeRegisteredUsersModal);
+            registeredUsersModal.addEventListener('click', (e) => {
+                if (e.target === registeredUsersModal) { // Close if clicked outside content
+                    closeRegisteredUsersModal();
+                } else if (e.target.classList.contains('copy-user-id-btn')) {
+                    const userIdToCopy = e.target.dataset.userid;
+                    if (userIdToCopy) {
+                         // Fallback for document.execCommand('copy')
+                        const tempInput = document.createElement('textarea');
+                        tempInput.value = userIdToCopy;
+                        document.body.appendChild(tempInput);
+                        tempInput.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(tempInput);
+                        e.target.textContent = 'Copié !';
+                        setTimeout(() => { e.target.textContent = 'Copier ID'; }, 1500);
+                    }
+                }
+            });
+
+            // Listen for auth state changes from Supabase
+            supabase.auth.onAuthStateChange(async (event, session) => {
+                console.log("Auth event:", event, "Session:", session);
+                currentUser = session ? session.user : null;
+                if (currentUser) {
+                    userInfoDiv.style.display = 'flex';
+                    userDisplayName.textContent = currentUser.user_metadata.full_name || currentUser.email;
+                    userAvatar.src = currentUser.user_metadata.avatar_url || 'https://placehold.co/32x32/161B22/7D8590?text=?';
+                    console.log("Logged in as:", currentUser.user_metadata.full_name, "(", currentUser.id, ")");
+                } else {
+                    userInfoDiv.style.display = 'none';
+                    userDisplayName.textContent = '';
+                    userAvatar.src = '';
+                }
+                await loadSession(); // Reload session and data based on new auth state
+            });
+        };
+
+        // --- Init ---
+        // Call loadState initially to handle current auth and session
+        loadState();
+        setupEventListeners();
+    });
+    </script>
+</body>
+</html>
