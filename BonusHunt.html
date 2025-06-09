@@ -169,8 +169,8 @@
             -webkit-backdrop-filter: blur(10px);
             border: 1px solid var(--border-color-light);
             display: flex;
-            flex-direction: column;
-            gap: 15px;
+            flex-direction: column; /* Added for vertical stacking */
+            gap: 15px; /* Added for spacing */
             align-items: center;
             justify-content: center;
             text-align: center;
@@ -668,6 +668,7 @@
          * @param {string} userId - The ID of the session owner.
          */
         const createNewSessionForUser = async (userId) => {
+            console.log("Creating new session for user:", userId);
             const newSessionName = `Bonus Hunt du ${new Date().toLocaleDateString('fr-FR')}`;
             const readToken = generateRandomToken();
             const writeToken = generateRandomToken();
@@ -675,7 +676,7 @@
             const { data, error } = await supabase
                 .from('sessions')
                 .insert([
-                    { name: newSessionName, owner_id: userId, read_token: readToken, write_token: writeToken }
+                    { name: newSessionName, owner_id: userId, read_token: readToken, write_token: writeToken, is_active: true } // is_active set to true by default
                 ])
                 .select()
                 .single();
@@ -688,17 +689,52 @@
             currentSession = data;
             accessMode = 'owner';
             sessionNameInput.value = newSessionName;
+            huntIsActive = true; // Set local state
             console.log("New session created:", currentSession);
 
             // Add owner to whitelist
             await addOwnerToWhitelist(currentSession.id, userId);
 
+            // Add initial rows to the database immediately after creating a new session
+            for (let i = 0; i < 5; i++) { // Add 5 initial rows
+                const newBonus = {
+                    session_id: currentSession.id,
+                    machine_name: '',
+                    provider: '',
+                    bet: null,
+                    winnings: null,
+                    user_id: currentUser ? currentUser.id : null
+                };
+                const { data: bonusData, error: bonusError } = await supabase
+                    .from('bonuses')
+                    .insert([newBonus])
+                    .select()
+                    .single();
+                
+                if (bonusError) {
+                    console.error("Error adding initial bonus to Supabase:", bonusError.message);
+                } else {
+                    sessionData.push({
+                        id: bonusData.id,
+                        machineName: bonusData.machine_name,
+                        provider: bonusData.provider,
+                        bet: bonusData.bet,
+                        winnings: bonusData.winnings,
+                        algoliaHit: null
+                    });
+                }
+            }
+            sessionData.sort((a,b) => a.id - b.id); // Keep sorted by ID
+            renderBonusCards(); // Render after all initial bonuses are fetched/added
+            updateStatsAndSave(); // Save state and update stats
+
             // Update URL to reflect the new session's write token for owner
             const newUrl = `${window.location.origin}${window.location.pathname}?edit=${writeToken}`;
             window.history.pushState({}, document.title, newUrl);
 
-            fetchBonuses(); // Fetch any (initially empty) bonuses
+            fetchBonuses(); // Re-fetch bonuses (will now contain initial rows)
             setupRealtimeListener();
+            setUIForAccessMode(accessMode, currentUser !== null); // Ensure UI is updated correctly
         };
 
         /**
@@ -733,6 +769,7 @@
          */
         const fetchBonuses = async () => {
             if (!currentSession) return;
+            console.log("Fetching bonuses for session:", currentSession.id);
             const { data, error } = await supabase
                 .from('bonuses')
                 .select('*')
@@ -751,11 +788,13 @@
                     // Re-create algoliaHit from stored provider and machine_name for display consistency
                     algoliaHit: b.machine_name && b.provider ? { name: b.machine_name, provider: { name: b.provider }, thumbnail_url: 'https://placehold.co/96x96/161B22/7D8590?text=?' } : null
                 }));
-                if (sessionData.length === 0) {
-                    addInitialRows(5, false); // Add initial rows if session is empty, but don't save to DB yet
-                }
+                // Do not add initial rows here anymore, it's done during createNewSessionForUser
+                // if (sessionData.length === 0) {
+                //     addInitialRows(5, false); // Add initial rows if session is empty, but don't save to DB yet
+                // }
                 renderBonusCards();
                 updateStatsAndSave();
+                console.log("Bonuses fetched and rendered:", sessionData);
             }
         };
 
@@ -765,28 +804,30 @@
         const setupRealtimeListener = () => {
             if (realtimeChannel) {
                 supabase.removeChannel(realtimeChannel); // Clean up previous listener
+                console.log("Removed previous realtime channel.");
             }
 
-            if (!currentSession || accessMode === 'edit' || accessMode === 'owner') {
-                // No realtime needed for edit/owner mode, or if no session
+            if (!currentSession) {
+                console.log("No current session to set up realtime listener.");
                 return;
             }
             
-            realtimeChannel = supabase
-                .channel(`session-${currentSession.id}-bonuses`)
-                .on('postgres_changes', { 
-                    event: '*', 
-                    schema: 'public', 
-                    table: 'bonuses',
-                    filter: `session_id=eq.${currentSession.id}` // Listen only for this session
-                }, payload => {
-                    console.log('Realtime change received!', payload);
-                    // Only update if change comes from another user (or from Supabase directly)
-                    // and if we are in read-only mode to prevent UI conflicts
-                    if (accessMode === 'read') {
-                        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-                            const newBonus = payload.new;
-                            const existingIndex = sessionData.findIndex(b => b.id === newBonus.id);
+            // Only setup realtime for read-only mode, as edit/owner modes handle updates via direct DB calls
+            if (accessMode === 'read') {
+                console.log("Setting up realtime listener for session:", currentSession.id, "in read mode.");
+                realtimeChannel = supabase
+                    .channel(`session-${currentSession.id}-bonuses`)
+                    .on('postgres_changes', { 
+                        event: '*', 
+                        schema: 'public', 
+                        table: 'bonuses',
+                        filter: `session_id=eq.${currentSession.id}` // Listen only for this session
+                    }, payload => {
+                        console.log('Realtime change received!', payload);
+                        const newBonus = payload.new;
+                        const oldBonus = payload.old;
+                        
+                        if (payload.eventType === 'INSERT') {
                             const transformedBonus = {
                                 id: newBonus.id,
                                 machineName: newBonus.machine_name,
@@ -795,22 +836,31 @@
                                 winnings: newBonus.winnings,
                                 algoliaHit: newBonus.machine_name && newBonus.provider ? { name: newBonus.machine_name, provider: { name: newBonus.provider }, thumbnail_url: 'https://placehold.co/96x96/161B22/7D8590?text=?' } : null
                             };
-
+                            sessionData.push(transformedBonus);
+                            sessionData.sort((a,b) => a.id - b.id); // Re-sort to maintain order
+                        } else if (payload.eventType === 'UPDATE') {
+                            const existingIndex = sessionData.findIndex(b => b.id === newBonus.id);
                             if (existingIndex > -1) {
-                                sessionData[existingIndex] = transformedBonus;
-                            } else {
-                                sessionData.push(transformedBonus);
-                                sessionData.sort((a,b) => a.id - b.id); // Re-sort to maintain order
+                                sessionData[existingIndex] = {
+                                    id: newBonus.id,
+                                    machineName: newBonus.machine_name,
+                                    provider: newBonus.provider,
+                                    bet: newBonus.bet,
+                                    winnings: newBonus.winnings,
+                                    algoliaHit: newBonus.machine_name && newBonus.provider ? { name: newBonus.machine_name, provider: { name: newBonus.provider }, thumbnail_url: 'https://placehold.co/96x96/161B22/7D8590?text=?' } : null
+                                };
                             }
                         } else if (payload.eventType === 'DELETE') {
-                            sessionData = sessionData.filter(b => b.id !== payload.old.id);
+                            sessionData = sessionData.filter(b => b.id !== oldBonus.id);
                         }
                         renderBonusCards();
                         calculateAndDisplayStats();
-                    }
-                })
-                .subscribe();
-            console.log("Subscribed to realtime changes for session:", currentSession.id);
+                    })
+                    .subscribe();
+                console.log("Subscribed to realtime changes for session:", currentSession.id);
+            } else {
+                 console.log("Realtime listener not needed for current access mode:", accessMode);
+            }
         };
 
         // --- Core Functions ---
@@ -818,9 +868,10 @@
         const saveState = async () => {
             if (!currentSession || (accessMode !== 'edit' && accessMode !== 'owner')) {
                 // If no session or not editable, don't save state
+                console.warn("Permission denied: Cannot save state.");
                 return;
             }
-
+            console.log("Saving state to Supabase...");
             try {
                 // Update session name if it changed
                 if (currentSession.name !== sessionNameInput.value) {
@@ -844,25 +895,55 @@
                         user_id: currentUser ? currentUser.id : null // Store user who last modified/created
                     };
 
-                    if (typeof bonus.id === 'number' && bonus.id < Date.now() - 1000) { // Existing bonus (approx. 1 sec buffer for new client-side IDs)
+                    if (typeof bonus.id === 'number' && bonus.id < 9007199254740991 && bonus.id > 10000000000) { // Check if ID is a valid Supabase bigint (not a client-generated timestamp)
+                        // Existing bonus - ensure it's not a fresh client-generated ID
+                        // Supabase IDs are BigInt, Date.now() can be close, but client generated IDs are usually smaller
+                        // Using a large number to differentiate from client-side timestamp IDs
+                        // A more robust check would be to see if `bonus.id` was returned by Supabase previously.
                         const { error } = await supabase
                             .from('bonuses')
                             .update(bonusToSave)
                             .eq('id', bonus.id);
                         if (error) console.error(`Error updating bonus ${bonus.id}:`, error.message);
-                    } else { // New bonus
-                        const { data, error } = await supabase
-                            .from('bonuses')
-                            .insert([bonusToSave])
-                            .select()
-                            .single();
-                        if (error) {
-                            console.error("Error inserting bonus:", error.message);
+                    } else { // New bonus or client-generated ID
+                        // Check if a bonus with similar content already exists to avoid duplicates
+                        // This is a basic check; full duplicate prevention might need more complex logic.
+                        const existing = await supabase.from('bonuses')
+                            .select('id')
+                            .eq('session_id', currentSession.id)
+                            .eq('machine_name', bonusToSave.machine_name)
+                            .eq('bet', bonusToSave.bet)
+                            .eq('winnings', bonusToSave.winnings)
+                            .limit(1);
+                        
+                        if (!existing.error && existing.data && existing.data.length > 0) {
+                            // Update the existing one instead of inserting a duplicate
+                            const { error } = await supabase
+                                .from('bonuses')
+                                .update(bonusToSave)
+                                .eq('id', existing.data[0].id);
+                            if (error) console.error(`Error updating existing bonus (dedupe) ${existing.data[0].id}:`, error.message);
+                            // Update local ID if it was a temporary one
+                            if (typeof bonus.id !== 'number' || bonus.id > 9007199254740991 || bonus.id < 10000000000) {
+                                bonus.id = existing.data[0].id;
+                            }
                         } else {
-                            bonus.id = data.id; // Update local ID with Supabase ID
+                            const { data, error } = await supabase
+                                .from('bonuses')
+                                .insert([bonusToSave])
+                                .select()
+                                .single();
+                            if (error) {
+                                console.error("Error inserting bonus:", error.message);
+                            } else {
+                                bonus.id = data.id; // Update local ID with Supabase ID
+                            }
                         }
                     }
                 }
+                // Filter out any bonuses that were deleted locally but might still be in sessionData before a full fetch
+                sessionData = sessionData.filter(b => b.id && (typeof b.id === 'number' && b.id < 9007199254740991)); // Keep only actual Supabase IDs or valid new ones
+
                 console.log("State saved to Supabase.");
 
             } catch (e) {
@@ -877,6 +958,7 @@
 
         // loadState is now replaced by fetchBonuses and initial session loading
         const loadState = async () => {
+            console.log("loadState called.");
             // Initial UI setup before authentication/session loading
             setUIForAccessMode('none', false);
 
@@ -887,29 +969,33 @@
                 userDisplayName.textContent = currentUser.user_metadata.full_name || currentUser.email;
                 userAvatar.src = currentUser.user_metadata.avatar_url || 'https://placehold.co/32x32/161B22/7D8590?text=?';
                 console.log("Logged in as:", currentUser.user_metadata.full_name, "(", currentUser.id, ")");
+            } else {
+                console.log("No user logged in.");
             }
 
             await loadSession(); // This will fetch bonuses and set up realtime
             updateHuntStatusUI(); // Ensure hunt status button is correct
+            console.log("loadState finished.");
         };
 
-        const addInitialRows = (count, shouldSave = true) => {
-            for (let i = 0; i < count; i++) {
-                sessionData.push({ id: Date.now() + Math.random(), machineName: '', provider: '', bet: null, winnings: null, algoliaHit: null });
-            }
-            if (shouldSave) {
-                renderBonusCards();
-                updateStatsAndSave();
-            }
-        };
+        // Removed addInitialRows function as it's now handled directly in createNewSessionForUser
+        // const addInitialRows = (count, shouldSave = true) => {
+        //     for (let i = 0; i < count; i++) {
+        //         sessionData.push({ id: Date.now() + Math.random(), machineName: '', provider: '', bet: null, winnings: null, algoliaHit: null });
+        //     }
+        //     if (shouldSave) {
+        //         renderBonusCards();
+        //         updateStatsAndSave();
+        //     }
+        // };
         
         // Add bonus to Supabase
         const addBonus = async (shouldRender = true) => {
-            if (accessMode !== 'edit' && accessMode !== 'owner') {
-                console.warn("Permission denied: Cannot add bonus in read-only mode.");
+            if (!currentSession || (accessMode !== 'edit' && accessMode !== 'owner')) {
+                console.warn("Permission denied: Cannot add bonus in read-only mode or no session.");
                 return;
             }
-
+            console.log("Adding new bonus...");
             const newBonus = {
                 session_id: currentSession.id,
                 machine_name: '',
@@ -945,15 +1031,16 @@
                 renderBonusCards();
                 updateStatsAndSave(); // This will save current data, including the new one
             }
+            console.log("Bonus added and rendered:", data);
         };
 
         // Delete bonus from Supabase
         const deleteBonus = async (id) => {
-            if (accessMode !== 'edit' && accessMode !== 'owner') {
-                console.warn("Permission denied: Cannot delete bonus in read-only mode.");
+            if (!currentSession || (accessMode !== 'edit' && accessMode !== 'owner')) {
+                console.warn("Permission denied: Cannot delete bonus in read-only mode or no session.");
                 return;
             }
-
+            console.log("Deleting bonus with ID:", id);
             const { error } = await supabase
                 .from('bonuses')
                 .delete()
@@ -967,17 +1054,21 @@
             sessionData = sessionData.filter(bonus => bonus.id !== id);
             renderBonusCards();
             updateStatsAndSave();
+            console.log("Bonus deleted locally and from Supabase.");
         };
 
         // Update bonus data in Supabase
         const updateBonusData = async (id, field, value) => {
-            if (accessMode !== 'edit' && accessMode !== 'owner') {
-                console.warn("Permission denied: Cannot update bonus in read-only mode.");
+            if (!currentSession || (accessMode !== 'edit' && accessMode !== 'owner')) {
+                console.warn("Permission denied: Cannot update bonus in read-only mode or no session.");
                 return;
             }
             const bonus = sessionData.find(b => b.id === id);
-            if (!bonus) return;
-            
+            if (!bonus) {
+                console.warn(`Bonus with ID ${id} not found locally.`);
+                return;
+            }
+            console.log(`Updating bonus ${id}, field ${field} to ${value}...`);
             let updatePayload = {};
 
             if (field === 'bet' || field === 'winnings') {
@@ -1008,16 +1099,24 @@
 
             if (error) {
                 console.error(`Error updating bonus ${id} in Supabase:`, error.message);
+            } else {
+                console.log(`Bonus ${id} updated successfully.`);
             }
         };
         
         const updateSingleCard = (id) => {
              const bonus = sessionData.find(b => b.id === id);
-             if(!bonus) return;
+             if(!bonus) {
+                console.warn(`Cannot update single card: Bonus with ID ${id} not found.`);
+                return;
+             }
 
              const card = bonusCardsContainer.querySelector(`[data-id="${bonus.id}"]`);
-             if(!card) return;
-
+             if(!card) {
+                console.warn(`Cannot update single card: Card element for bonus ID ${id} not found.`);
+                return;
+             }
+            console.log("Updating single card UI for bonus ID:", id);
              const multiplier = calculateMultiplier(bonus.bet, bonus.winnings);
              let multiClass = '';
              if (multiplier > 0) {
@@ -1038,7 +1137,13 @@
         };
 
         const renderBonusCards = () => {
+            console.log("Rendering bonus cards. Total bonuses:", sessionData.length);
             bonusCardsContainer.innerHTML = '';
+            if (sessionData.length === 0 && (accessMode === 'owner' || accessMode === 'edit')) { // Show message if editable and empty
+                bonusCardsContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary); margin-top: 20px;">Cliquez sur "+ Ajouter Bonus" pour commencer votre chasse !</p>';
+            } else if (sessionData.length === 0 && accessMode === 'read') { // Show different message if read-only and empty
+                bonusCardsContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary); margin-top: 20px;">Le propriétaire de cette session n\'a pas encore ajouté de bonus.</p>';
+            }
             sessionData.forEach(bonus => {
                 const card = document.createElement('div');
                 card.className = 'bonus-card';
@@ -1053,7 +1158,7 @@
                 }
 
                 card.innerHTML = `
-                    <img src="${bonus.algoliaHit?.thumbnail_url || 'https://placehold.co/96x96/161B22/7D8590?text=?'}" alt="Slot" onerror="this.src='https://placehold.co/96x96/161B22/7D8590?text=?'">
+                    <img src="${bonus.algoliaHit?.thumbnail_url || 'https://placehold.co/96x96/161B22/7D8590?text=?';}" alt="Slot" onerror="this.src='https://placehold.co/96x96/161B22/7D8590?text=?';">
                     <div class="info">
                         <input type="text" class="slot-name-input" value="${bonus.machineName || ''}" placeholder="Nom de la machine...">
                         <div class="provider">${bonus.algoliaHit?.provider.name || bonus.provider || 'Fournisseur'}</div>
@@ -1086,6 +1191,7 @@
         };
 
         const calculateAndDisplayStats = () => {
+            console.log("Calculating and displaying stats...");
             const initialBalance = parseFloat(initialBalanceInput.value) || 0;
             let totalBet = 0, totalWinnings = 0, openedBonuses = 0, totalBonuses = 0;
             let bestSlot = { name: '-', multi: 0 };
@@ -1145,6 +1251,7 @@
             if(roi === 0) statElements.roi.classList.remove('positive', 'negative');
             
             renderProviderRanking(providerPerformance);
+            console.log("Stats displayed.");
         };
         
         const renderProviderRanking = (performanceData) => {
@@ -1169,6 +1276,7 @@
         };
 
         const updateHuntStatusUI = async () => {
+            console.log("Updating hunt status UI. Current accessMode:", accessMode, "huntIsActive:", huntIsActive);
             if (!currentSession || (accessMode !== 'edit' && accessMode !== 'owner')) {
                 // If not session owner, disable status button and derive status from DB
                 huntStatusButton.disabled = true;
@@ -1180,7 +1288,8 @@
             } else {
                 huntStatusButton.disabled = false;
                 // Owner can toggle status, update DB
-                if (currentSession) {
+                if (currentSession && currentSession.is_active !== huntIsActive) { // Only update DB if state changed
+                    console.log("Toggling hunt status in DB to:", huntIsActive);
                     const { error } = await supabase
                         .from('sessions')
                         .update({ is_active: huntIsActive })
@@ -1189,17 +1298,14 @@
                         console.error("Error updating hunt status in Supabase:", error.message);
                     } else {
                         currentSession.is_active = huntIsActive; // Update local state
-                        updateHuntStatusUI();
-                        updateStatsAndSave();
                     }
-                } else {
-                    console.warn("Permission denied: Cannot change hunt status in read-only mode.");
                 }
             }
 
             huntStatusButton.textContent = huntIsActive ? "Chasse en cours..." : "Chasse Terminée";
             huntStatusButton.className = `status-button ${huntIsActive ? 'in-progress' : 'completed'}`;
             initialBalanceInput.disabled = !huntIsActive || (accessMode !== 'edit' && accessMode !== 'owner');
+            console.log("Hunt status UI updated.");
         };
         
         // --- Algolia Functions ---
@@ -1295,8 +1401,11 @@
         
         // --- Registered Users Modal Functions ---
         const openRegisteredUsersModal = async () => {
-            if (!currentSession || accessMode !== 'owner') return;
-
+            if (!currentSession || accessMode !== 'owner') {
+                console.warn("Permission denied: Only owner can open registered users modal.");
+                return;
+            }
+            console.log("Opening registered users modal...");
             registeredUsersList.innerHTML = '';
             // Fetch distinct user_ids from the bonuses table for the current session
             const { data: bonusUsers, error: bonusUsersError } = await supabase
@@ -1338,18 +1447,16 @@
                     let displayName = `Utilisateur inconnu (${userId.substring(0, 8)}...)`; // Default fallback
 
                     // Attempt to get user_metadata from last bonus they created/modified
-                    const { data: userBonus, error: userBonusError } = await supabase
-                        .from('bonuses')
-                        .select('user_id, profiles(full_name)') // Assuming 'profiles' table linked to auth.users
-                        .eq('user_id', userId)
-                        .eq('session_id', currentSession.id)
-                        .not('user_id', 'is', null)
-                        .order('id', { ascending: false }) // Get most recent entry
-                        .limit(1)
+                    // This query assumes a `profiles` table exists and is correctly linked/RLS configured.
+                    // If not, it will fall back to using just the user ID.
+                    const { data: userProfile, error: userProfileError } = await supabase
+                        .from('profiles')
+                        .select('full_name')
+                        .eq('id', userId)
                         .single();
                     
-                    if (!userBonusError && userBonus && userBonus.profiles && userBonus.profiles.full_name) {
-                         displayName = userBonus.profiles.full_name;
+                    if (!userProfileError && userProfile && userProfile.full_name) {
+                         displayName = userProfile.full_name;
                     } else if (userId === currentSession.owner_id && currentUser) {
                         // If it's the owner and we have their local user info
                         displayName = currentUser.user_metadata.full_name || currentUser.email;
@@ -1373,31 +1480,25 @@
             }
 
             registeredUsersModal.style.display = 'flex';
+            console.log("Registered users modal opened.");
         };
 
         const closeRegisteredUsersModal = () => {
             registeredUsersModal.style.display = 'none';
+            console.log("Registered users modal closed.");
         };
 
         // --- Event Listeners ---
         const setupEventListeners = () => {
+            console.log("Setting up event listeners...");
             addRowBtn.addEventListener('click', addBonus);
             
             huntStatusButton.addEventListener('click', async () => {
                 if (accessMode === 'edit' || accessMode === 'owner') {
                     huntIsActive = !huntIsActive;
-                    // Update Supabase for session 'is_active' status
-                    const { error } = await supabase
-                        .from('sessions')
-                        .update({ is_active: huntIsActive })
-                        .eq('id', currentSession.id);
-                    if (error) {
-                        console.error("Error updating hunt status in Supabase:", error.message);
-                    } else {
-                        currentSession.is_active = huntIsActive; // Update local state
-                        updateHuntStatusUI();
-                        updateStatsAndSave();
-                    }
+                    // updateHuntStatusUI will now handle DB update based on currentSession.is_active vs huntIsActive
+                    await updateHuntStatusUI(); // Call it to update DB and UI
+                    updateStatsAndSave(); // Save state and update stats (also saves active status implicitly if needed)
                 } else {
                     console.warn("Permission denied: Cannot change hunt status in read-only mode.");
                 }
@@ -1460,7 +1561,7 @@
             logoutBtn.addEventListener('click', signOut);
 
             manageUsersBtn.addEventListener('click', openRegisteredUsersModal);
-            closeUsersModalBtn.addEventListener('click', closeRegisteredUsersModal);
+            closeUsersModalBtn.addEventListener('click', closeUsersModalBtn); /* Changed to closeUsersModalBtn */
             registeredUsersModal.addEventListener('click', (e) => {
                 if (e.target === registeredUsersModal) { // Close if clicked outside content
                     closeRegisteredUsersModal();
@@ -1493,9 +1594,11 @@
                     userInfoDiv.style.display = 'none';
                     userDisplayName.textContent = '';
                     userAvatar.src = '';
+                    console.log("User logged out or no user.");
                 }
                 await loadSession(); // Reload session and data based on new auth state
             });
+            console.log("Event listeners set up.");
         };
 
         // --- Init ---
