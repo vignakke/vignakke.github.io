@@ -633,6 +633,22 @@
             }
         });
 
+        allDOMElements.gameTableBody.addEventListener('input', e => {
+            const target = e.target;
+            if (target.classList.contains('slot-name')) {
+                currentAlgoliaInput = target;
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(async () => {
+                    if (target.value.length >= 2) {
+                        const data = await fetchAlgoliaSuggestions(target.value);
+                        showAlgoliaDropdown(data.hits);
+                    } else {
+                        allDOMElements.algoliaDropdown.style.display = 'none';
+                    }
+                }, 300);
+            }
+        });
+
         allDOMElements.gameTableBody.addEventListener('change', e => {
             const target = e.target;
             const row = target.closest('tr');
@@ -664,7 +680,7 @@
                 calculateStats();
             }
         });
-
+        
         allDOMElements.gameTableBody.addEventListener('click', e => {
             const target = e.target.closest('button');
             if (!target) return;
