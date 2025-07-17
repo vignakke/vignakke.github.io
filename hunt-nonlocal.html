@@ -649,6 +649,28 @@
             }
         });
 
+        allDOMElements.gameTableBody.addEventListener('input', e => {
+            const target = e.target;
+            if (target.classList.contains('slot-name')) {
+                const row = target.closest('tr');
+                if (!row) return;
+                const index = parseInt(row.dataset.index, 10);
+                if (isNaN(index) || !slots[index]) return;
+                slots[index].name = target.value;
+
+                currentAlgoliaInput = target;
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(async () => {
+                    if (target.value.length >= 2) {
+                        const data = await fetchAlgoliaSuggestions(target.value);
+                        showAlgoliaDropdown(data.hits);
+                    } else {
+                        allDOMElements.algoliaDropdown.style.display = 'none';
+                    }
+                }, 300);
+            }
+        });
+
         allDOMElements.gameTableBody.addEventListener('change', e => {
             const target = e.target;
             const row = target.closest('tr');
@@ -660,7 +682,6 @@
             let shouldUpdate = false;
 
             if (target.classList.contains('slot-name')) {
-                slot.name = target.value;
                 if (slot.bet) shouldUpdate = true;
             } else if (target.classList.contains('bet')) {
                 slot.bet = parseFloat(target.value.replace(',', '.')) || null;
@@ -676,22 +697,6 @@
             if (shouldUpdate) {
                 slot.status = (slot.winnings && slot.winnings > 0) ? 'collected' : 'pending';
                 slot.multiplier = (slot.bet > 0 && slot.winnings > 0) ? slot.winnings / slot.bet : null;
-                updateRow(index);
-                calculateStats();
-            }
-        });
-        
-        allDOMElements.gameTableBody.addEventListener('click', e => {
-            const target = e.target.closest('button');
-            if (!target) return;
-            const row = target.closest('tr');
-            if (!row) return;
-            const index = parseInt(row.dataset.index, 10);
-
-            if (target.classList.contains('delete-btn')) {
-                deleteSlot(index);
-            } else if (target.classList.contains('bounty-btn')) {
-                slots[index].isBounty = !slots[index].isBounty;
                 updateRow(index);
                 calculateStats();
             }
