@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bonus Hunt Tracker (Online)</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg-primary: #0D1117;
+            --bg-secondary: #161B22;
+            --bg-glass: rgba(22, 27, 34, 0.6);
+            --text-primary: #E6EDF3;
+            --text-secondary: #7D8590;
+            --accent-primary: #58A6FF;
+            --accent-secondary: #3FB950;
+            --accent-warning: #D29922;
+            --accent-danger: #F85149;
+            --accent-purple: #C38DFF;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-primary);
+            background-image: linear-gradient(45deg, rgba(88, 166, 255, 0.05), rgba(236, 72, 153, 0.05));
+            color: var(--text-primary);
+            margin: 0;
+            padding: 10px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        
+        body.readonly {
+             background-image: linear-gradient(45deg, rgba(210, 153, 34, 0.1), rgba(248, 81, 73, 0.1));
+        }
+
+        .container { display: flex; gap: 10px; min-height: calc(100vh - 20px); box-sizing: border-box; flex-wrap: wrap; align-items: flex-start; }
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; min-height: 100%; min-width: 0; }
+        .sidebar { width: 350px; flex-shrink: 0; height: 100%; overflow-y: auto; box-sizing: border-box; }
+        .sidebar::-webkit-scrollbar { width: 5px; }
+        .sidebar::-webkit-scrollbar-track { background: transparent; }
+        .sidebar::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 3px; }
+
+        .card { background: var(--bg-glass); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 10px; }
+        .card-header { display: flex; align-items: center; gap: 10px; font-size: 1.1em; font-weight: 600; padding: 10px 15px; border-bottom: 1px solid var(--border-color); }
+        .card-header .fa-star { color: var(--accent-warning); }
+        .card-header .fa-gamepad { color: var(--accent-purple); }
+        .card-content { padding: 15px; }
+        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .summary-item .label { font-size: 0.9em; color: var(--text-secondary); margin-bottom: 5px; }
+        .summary-item .value { font-size: 1.4em; font-weight: 600; }
+        .summary-item .sub-value { font-size: 0.8em; }
+        .detail-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
+        .detail-item .value { font-weight: 600; color: var(--text-primary); }
+        .detail-item .sub-text { font-size: 0.8em; color: var(--text-secondary); }
+
+        .controls { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; }
+        .btn { background-color: var(--accent-primary); color: white; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; transition: background-color 0.2s ease; }
+        .btn:hover:not(:disabled) { background-color: #79bbff; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        #currencySelector { background-color: var(--bg-secondary); border: 1px solid var(--border-color); margin-left: auto; padding: 6px 10px; font-size: 0.9em; }
+        
+        .game-table-container { flex-grow: 1; overflow-y: auto; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
+        th { font-size: 0.8em; color: var(--text-secondary); text-transform: uppercase; }
+
+        input { background: transparent; border: 1px solid var(--border-color); border-radius: 4px; padding: 8px; color: var(--text-primary); font-family: inherit; font-size: 0.9em; width: 90%; }
+        .pill { padding: 5px 10px; border-radius: 20px; font-size: 0.8em; font-weight: 500; color: white; text-align: center; }
+        .pill.pending { background-color: var(--accent-warning); }
+        .pill.collected { background-color: var(--accent-secondary); }
+
+        .actions button { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1em; padding: 5px; }
+        .actions button:hover:not(:disabled) { color: var(--accent-danger); }
+
+        .bounty-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2em; }
+        .bounty-btn.active { color: var(--accent-warning); }
+        .slot-name-container { display: flex; align-items: center; }
+        .slot-name-cell .fa-star { color: var(--accent-warning); font-size: 0.8em; margin-left: 8px; }
+
+        .algolia-dropdown { position: absolute; z-index: 1000; background: rgba(33, 38, 45, 0.9); backdrop-filter: blur(10px); border: 1px solid var(--border-color); border-radius: 8px; max-height: 300px; overflow-y: auto; }
+        .algolia-dropdown .provider-group { padding: 5px 0; }
+        .algolia-dropdown .provider-name { font-weight: 600; color: var(--text-secondary); padding: 10px 15px; font-size: 0.9em; text-transform: uppercase; }
+        .algolia-dropdown .slot-item { padding: 10px 15px; cursor: pointer; }
+        .algolia-dropdown .slot-item:hover { background-color: var(--accent-primary); }
+
+        .multi-low { color: var(--text-primary); }
+        .multi-mid { color: var(--accent-warning); font-weight: bold; }
+        .multi-high { color: var(--accent-secondary); font-weight: bold; }
+        .multi-epic { color: var(--accent-primary); font-weight: bold; text-shadow: 0 0 5px var(--accent-primary); }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 2000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; }
+        .modal-overlay.visible { opacity: 1; visibility: visible; }
+        .modal-content { background: var(--bg-secondary); padding: 25px; border-radius: 12px; border: 1px solid var(--border-color); width: 90%; max-width: 500px; box-shadow: 0 5px 20px rgba(0,0,0,0.4); }
+        .modal-header { font-size: 1.4em; font-weight: 600; margin-bottom: 15px; }
+        .modal-body input[type="text"] { width: 100%; padding: 10px; margin-bottom: 15px; box-sizing: border-box; }
+        .modal-body .checkbox-container { display: flex; align-items: center; margin-bottom: 20px; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; }
+        #connectionStatus { font-size: 0.8em; padding: 5px 10px; border-radius: 5px; margin-left: 10px; }
+        #connectionStatus.connected { background-color: var(--accent-secondary); color: white; }
+        #connectionStatus.disconnected { background-color: var(--accent-danger); color: white; }
+
+        @media (max-width: 992px) {
+            .container { flex-direction: column; min-height: auto; }
+            .sidebar, .main-content { width: 100%; max-width: none; height: auto; }
+            .sidebar { order: 1; margin-bottom: 10px; }
+            .main-content { order: 2; }
+            body { padding: 5px; }
+        }
+        @media (max-width: 576px) {
+            .summary-grid { grid-template-columns: 1fr; }
+            .controls { flex-direction: column; align-items: stretch; }
+            .btn, #currencySelector { width: 100%; margin-bottom: 5px; margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="main-content">
+            <div class="controls">
+                <button class="btn" id="homeBtn" style="background-color: var(--text-secondary);"><i class="fas fa-home"></i> Accueil</button>
+                <button class="btn" id="addRowBtn"><i class="fas fa-plus"></i> Ajouter</button>
+                <button class="btn" id="clearHuntBtn" style="background-color: var(--accent-danger);"><i class="fas fa-trash"></i> Vider</button>
+                <button class="btn" id="saveHuntBtn"><i class="fas fa-save"></i> Sauvegarder Image</button>
+                <button class="btn" id="shareHuntBtn" style="background-color: var(--accent-purple);"><i class="fas fa-share-alt"></i> Partager</button>
+                <select id="currencySelector" class="btn">
+                    <option value="EUR">€ EUR</option>
+                    <option value="USD">$ USD</option>
+                    <option value="CAD">$ CAD</option>
+                </select>
+                <div id="connectionStatus"></div>
+            </div>
+            <div class="card game-table-container">
+                 <table>
+                    <thead>
+                        <tr>
+                            <th>Bounty</th>
+                            <th>Slot</th>
+                            <th>Provider</th>
+                            <th>Mise</th>
+                            <th>Statut</th>
+                            <th>Gain</th>
+                            <th>Multi</th>
+                            <th>Discord ID</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="game-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <!-- All the summary cards -->
+            <div class="card">
+                <div class="card-header"><i class="fas fa-chart-line"></i> Résumé</div>
+                <div class="card-content summary-grid">
+                    <div class="summary-item">
+                        <div class="label">Montant de départ</div>
+                        <input type="text" inputmode="decimal" id="startAmount" value="0.00" style="font-size: 1.4em; font-weight: 600; padding: 0; border: none; width: 100%; background: transparent;">
+                    </div>
+                    <div class="summary-item">
+                        <div class="label">Total Misé</div>
+                        <div class="value" id="totalBet">0.00</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="label">Total gagné</div>
+                        <div class="value" id="totalWon">0.00</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="label">Profit/Loss</div>
+                        <div class="value" id="profitLoss">0.00</div>
+                        <div class="sub-value" id="roi">(0.00%)</div>
+                    </div>
+                     <div class="summary-item">
+                        <div class="label"># Slots</div>
+                        <div class="value" id="slotCount">0</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="label">Multiplicateur Moyen</div>
+                        <div class="value" id="avgMultiplier">0.00x</div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><i class="fas fa-balance-scale"></i> Break Even</div>
+                <div class="card-content">
+                    <div class="detail-item">
+                        <span class="label">Break Even Fixe</span>
+                        <span class="value" id="breakEvenFixed">0.00x</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Break Even Évolutif</span>
+                        <span class="value" id="breakEvenEvo">N/A</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><i class="fas fa-gamepad"></i> Providers</div>
+                <div class="card-content">
+                    <div class="detail-item">
+                        <span class="label">Le plus joué</span>
+                        <span class="value" id="mostPlayedProvider">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Plus gros gain</span>
+                        <span class="value" id="biggestWinProvider">-</span>
+                    </div>
+                </div>
+            </div>
+             <div class="card">
+                <div class="card-header"><i class="fas fa-star"></i> Remarquables</div>
+                <div class="card-content">
+                    <div class="detail-item">
+                        <span class="label">Meilleur Multi</span>
+                        <span class="value" id="bestMultiplier">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Meilleur Gain</span>
+                        <span class="value" id="bestWin">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="algoliaDropdown" class="algolia-dropdown" style="display:none;"></div>
+
+    <!-- Share Modal -->
+    <div id="shareModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">Partager cette Chasse</div>
+            <div class="modal-body">
+                <p style="color: var(--text-secondary); font-size: 0.9em; margin-bottom: 15px;">Copiez ce lien pour partager votre chasse en temps réel.</p>
+                <input type="text" id="shareLinkInput" readonly style="cursor: copy;">
+                <div class="checkbox-container">
+                    <input type="checkbox" id="readOnlyCheck" style="width: auto; margin-right: 10px;">
+                    <label for="readOnlyCheck">Lecture seule (les spectateurs ne peuvent pas modifier)</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="copyLinkBtn" class="btn">Copier</button>
+                <button id="closeModalBtn" class="btn" style="background-color: var(--text-secondary);">Fermer</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- START: Firebase Configuration ---
+        // IMPORTANT: Replace with your own Firebase project configuration.
+        const firebaseConfig = {
+            apiKey: "AIzaSyAQSGG6Q0RGJ8GqC7cn1PNGSoFcYZ1txos",
+            authDomain: "huntdiscord-ed74c.firebaseapp.com",
+            projectId: "huntdiscord-ed74c",
+            storageBucket: "huntdiscord-ed74c.firebasestorage.app",
+            messagingSenderId: "5878793471",
+            appId: "1:5878793471:web:3e2d3cbfd7671d992df8ca"
+        };
+        // --- END: Firebase Configuration ---
+
+        // --- Global State & Firebase ---
+        let slots = [];
+        let currentAlgoliaInput = null;
+        let debounceTimer;
+        let huntRef = null;
+        let isHost = false;
+        let isReadOnly = false;
+
+        // --- DOM Elements ---
+        const allDOMElements = {
+            startAmountInput: document.getElementById('startAmount'),
+            currencySelector: document.getElementById('currencySelector'),
+            addRowBtn: document.getElementById('addRowBtn'),
+            clearHuntBtn: document.getElementById('clearHuntBtn'),
+            saveHuntBtn: document.getElementById('saveHuntBtn'),
+            homeBtn: document.getElementById('homeBtn'),
+            gameTableBody: document.getElementById('game-table-body'),
+            algoliaDropdown: document.getElementById('algoliaDropdown'),
+            totalWonEl: document.getElementById('totalWon'),
+            totalBetEl: document.getElementById('totalBet'),
+            profitLossEl: document.getElementById('profitLoss'),
+            roiEl: document.getElementById('roi'),
+            slotCountEl: document.getElementById('slotCount'),
+            avgMultiplierEl: document.getElementById('avgMultiplier'),
+            breakEvenFixedEl: document.getElementById('breakEvenFixed'),
+            breakEvenEvoEl: document.getElementById('breakEvenEvo'),
+            mostPlayedProviderEl: document.getElementById('mostPlayedProvider'),
+            biggestWinProviderEl: document.getElementById('biggestWinProvider'),
+            bestMultiplierEl: document.getElementById('bestMultiplier'),
+            bestWinEl: document.getElementById('bestWin'),
+            shareHuntBtn: document.getElementById('shareHuntBtn'),
+            shareModal: document.getElementById('shareModal'),
+            closeModalBtn: document.getElementById('closeModalBtn'),
+            copyLinkBtn: document.getElementById('copyLinkBtn'),
+            shareLinkInput: document.getElementById('shareLinkInput'),
+            readOnlyCheck: document.getElementById('readOnlyCheck'),
+            connectionStatus: document.getElementById('connectionStatus')
+        };
+
+        const ALGOLIA_API_URL = 'https://m37m2qcrh0-dsn.algolia.net/1/indexes/freeSlots/query';
+        const ALGOLIA_HEADERS = { 'x-algolia-api-key': 'da9d2da4b154d0423374f859cfc77c71', 'x-algolia-application-id': 'M37M2QCRH0', 'Content-Type': 'application/json' };
+
+        // --- Core Functions ---
+        function init() {
+            try {
+                firebase.initializeApp(firebaseConfig);
+            } catch (e) {
+                console.error("Firebase initialization failed. Have you replaced the placeholder configuration?", e);
+                alert("La configuration de Firebase est manquante ou invalide. Le partage en temps réel est désactivé.");
+                allDOMElements.shareHuntBtn.disabled = true;
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const huntId = urlParams.get('id');
+
+            if (huntId) {
+                isHost = false;
+                huntRef = firebase.database().ref('hunts/' + huntId);
+                attachFirebaseListeners();
+            } else {
+                isHost = true;
+                isReadOnly = false;
+                loadStateFromLocalStorage();
+                renderTable();
+                calculateStats();
+                toggleEditability();
+                updateConnectionStatus(false);
+            }
+        }
+
+        function attachFirebaseListeners() {
+            const db = firebase.database();
+            const connectedRef = db.ref(".info/connected");
+            
+            connectedRef.on("value", (snap) => {
+                if (snap.val() === true) {
+                    updateConnectionStatus(true, isHost ? "Hôte" : (isReadOnly ? "Lecture Seule" : "Connecté"));
+                } else {
+                    updateConnectionStatus(false, "Déconnecté");
+                }
+            });
+
+            huntRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    if (!isHost) {
+                        const newReadOnly = data.isReadOnly || false;
+                        if (newReadOnly !== isReadOnly) {
+                            isReadOnly = newReadOnly;
+                            toggleEditability();
+                        }
+                    }
+                    slots = data.slots || [];
+                    allDOMElements.startAmountInput.value = data.startAmount || '0.00';
+                    allDOMElements.currencySelector.value = data.currency || 'EUR';
+                    renderTable();
+                    calculateStats(false); // Don't save back to Firebase
+                } else {
+                    // Hunt was deleted by host
+                    alert("Cette chasse a été supprimée par l'hôte.");
+                    goHome();
+                }
+            });
+        }
+
+        function createNewHunt() {
+            const huntId = firebase.database().ref().child('hunts').push().key;
+            huntRef = firebase.database().ref('hunts/' + huntId);
+            isHost = true;
+            isReadOnly = allDOMElements.readOnlyCheck.checked;
+            
+            const url = `${window.location.origin}${window.location.pathname}?id=${huntId}`;
+            allDOMElements.shareLinkInput.value = url;
+            window.history.pushState({ path: url }, '', url);
+
+            saveStateToFirebase();
+            attachFirebaseListeners();
+            toggleEditability();
+        }
+
+        function toggleEditability() {
+            const isEditable = isHost || !isReadOnly;
+            document.body.classList.toggle('readonly', !isEditable);
+            
+            // Disable all inputs if not editable
+            Object.values(allDOMElements).forEach(el => {
+                if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'BUTTON') {
+                    el.disabled = !isEditable;
+                }
+            });
+
+            // Always enable navigation and sharing buttons
+            allDOMElements.homeBtn.disabled = false;
+            allDOMElements.saveHuntBtn.disabled = false;
+            allDOMElements.shareHuntBtn.disabled = false;
+            allDOMElements.closeModalBtn.disabled = false;
+            allDOMElements.copyLinkBtn.disabled = false;
+            
+            // Host can always change read-only status
+            allDOMElements.readOnlyCheck.disabled = !isHost;
+        }
+
+        function updateConnectionStatus(connected, text) {
+            const statusEl = allDOMElements.connectionStatus;
+            if (huntRef) {
+                statusEl.textContent = text;
+                statusEl.className = connected ? 'connected' : 'disconnected';
+            } else {
+                statusEl.textContent = 'Local';
+                statusEl.className = '';
+            }
+        }
+
+        function goHome() {
+            window.location.href = window.location.origin + window.location.pathname;
+        }
+
+        // --- State Management ---
+        function saveState() {
+            if (huntRef && isHost) {
+                saveStateToFirebase();
+            } else if (!huntRef) {
+                saveStateToLocalStorage();
+            }
+        }
+
+        function saveStateToFirebase() {
+            if (!huntRef || !isHost) return;
+            const state = {
+                slots: slots,
+                startAmount: allDOMElements.startAmountInput.value,
+                currency: allDOMElements.currencySelector.value,
+                isReadOnly: allDOMElements.readOnlyCheck.checked
+            };
+            huntRef.set(state).catch(e => console.error("Firebase update failed:", e));
+        }
+
+        function saveStateToLocalStorage() {
+            const state = {
+                slots: slots,
+                startAmount: allDOMElements.startAmountInput.value,
+                currency: allDOMElements.currencySelector.value,
+            };
+            localStorage.setItem('bonusHuntState', JSON.stringify(state));
+        }
+
+        function loadStateFromLocalStorage() {
+            const state = JSON.parse(localStorage.getItem('bonusHuntState'));
+            if (state) {
+                slots = state.slots || [];
+                allDOMElements.startAmountInput.value = state.startAmount || '0.00';
+                allDOMElements.currencySelector.value = state.currency || 'EUR';
+            }
+            if (slots.length === 0) {
+                 for (let i = 0; i < 10; i++) { addSlot(false); }
+            }
+        }
+
+        // --- Main Logic (Calculate, Render, etc.) ---
+        function renderTable() {
+            const body = allDOMElements.gameTableBody;
+            body.innerHTML = '';
+            const isEditable = isHost || !isReadOnly;
+            slots.forEach((slot, index) => {
+                const row = document.createElement('tr');
+                row.dataset.index = index;
+                row.innerHTML = `
+                    <td><button class="bounty-btn ${slot.isBounty ? 'active' : ''}" ${!isEditable ? 'disabled' : ''}><i class="fas fa-star"></i></button></td>
+                    <td class="slot-name-cell">
+                        <div class="slot-name-container">
+                            <input type="text" class="slot-name" value="${slot.name || ''}" placeholder="Nom du slot" ${!isEditable ? 'disabled' : ''}>
+                            ${slot.isBounty ? '<i class="fas fa-star"></i>' : ''}
+                        </div>
+                    </td>
+                    <td class="provider-cell">${slot.provider || ''}</td>
+                    <td><input type="text" inputmode="decimal" class="bet" value="${slot.bet || ''}" ${!isEditable ? 'disabled' : ''}></td>
+                    <td><div class="pill ${slot.status}">${slot.status === 'collected' ? 'Collecté' : 'En attente'}</div></td>
+                    <td><input type="text" inputmode="decimal" class="winnings" value="${slot.winnings || ''}" ${!isEditable ? 'disabled' : ''}></td>
+                    <td class="multiplier-cell">${getMultiplierHTML(slot.multiplier)}</td>
+                    <td><input type="text" class="discord-id-input" value="${slot.discordId || ''}" placeholder="@username" ${!isEditable ? 'disabled' : ''}></td>
+                    <td class="actions"><button class="delete-btn" ${!isEditable ? 'disabled' : ''}><i class="fas fa-trash"></i></button></td>
+                `;
+                body.appendChild(row);
+            });
+        }
+        
+        function updateRow(index) {
+            const row = allDOMElements.gameTableBody.querySelector(`tr[data-index="${index}"]`);
+            if (!row) return;
+            const slot = slots[index];
+            row.querySelector('.slot-name').value = slot.name;
+            const slotNameContainer = row.querySelector('.slot-name-container');
+            let starIcon = slotNameContainer.querySelector('.fa-star');
+            if (slot.isBounty && !starIcon) {
+                starIcon = document.createElement('i');
+                starIcon.className = 'fas fa-star';
+                slotNameContainer.appendChild(starIcon);
+            } else if (!slot.isBounty && starIcon) {
+                starIcon.remove();
+            }
+            row.querySelector('.provider-cell').textContent = slot.provider;
+            row.querySelector('.multiplier-cell').innerHTML = getMultiplierHTML(slot.multiplier);
+            const statusCell = row.querySelector('.pill');
+            statusCell.textContent = slot.status === 'collected' ? 'Collecté' : 'En attente';
+            statusCell.className = `pill ${slot.status}`;
+            row.querySelector('.bounty-btn').classList.toggle('active', slot.isBounty);
+        }
+
+        function getMultiplierHTML(multiplier) {
+            if (!multiplier) return '-';
+            let className = 'multi-low';
+            if (multiplier >= 1000) className = 'multi-epic';
+            else if (multiplier >= 250) className = 'multi-high';
+            else if (multiplier >= 50) className = 'multi-mid';
+            return `<span class="${className}">${multiplier.toFixed(2)}x</span>`;
+        }
+
+        function calculateStats(shouldSave = true) {
+            const startAmount = parseFloat(allDOMElements.startAmountInput.value.replace(',', '.')) || 0;
+            const currencySymbol = allDOMElements.currencySelector.options[allDOMElements.currencySelector.selectedIndex].text.split(' ')[0];
+            const slotsWithBet = slots.filter(s => s.bet > 0);
+            const collectedSlots = slotsWithBet.filter(s => s.status === 'collected');
+            const pendingSlots = slotsWithBet.filter(s => s.status === 'pending');
+            const totalBet = slotsWithBet.reduce((sum, s) => sum + s.bet, 0);
+            const totalWinnings = collectedSlots.reduce((sum, s) => sum + (s.winnings || 0), 0);
+            const pendingBets = pendingSlots.reduce((sum, s) => sum + s.bet, 0);
+            const profitLoss = totalWinnings - startAmount;
+            const roi = startAmount > 0 ? (profitLoss / startAmount) * 100 : 0;
+            const avgMultiplier = totalBet > 0 ? totalWinnings / totalBet : 0;
+            const breakEvenFixed = startAmount > 0 && totalBet > 0 ? startAmount / totalBet : 0;
+            const neededForBE = startAmount - totalWinnings;
+            
+            allDOMElements.totalBetEl.textContent = `${totalBet.toFixed(2)} ${currencySymbol}`;
+            allDOMElements.totalWonEl.textContent = `${totalWinnings.toFixed(2)} ${currencySymbol}`;
+            allDOMElements.profitLossEl.textContent = `${profitLoss.toFixed(2)} ${currencySymbol}`;
+            allDOMElements.profitLossEl.style.color = profitLoss >= 0 ? 'var(--accent-secondary)' : 'var(--accent-danger)';
+            allDOMElements.roiEl.textContent = `(${roi.toFixed(2)}%)`;
+            allDOMElements.roiEl.style.color = roi >= 0 ? 'var(--accent-secondary)' : 'var(--accent-danger)';
+            allDOMElements.avgMultiplierEl.textContent = `${avgMultiplier.toFixed(2)}x`;
+            allDOMElements.breakEvenFixedEl.textContent = `${breakEvenFixed.toFixed(2)}x`;
+
+            if (neededForBE <= 0) {
+                allDOMElements.breakEvenEvoEl.textContent = "Atteint";
+                allDOMElements.breakEvenEvoEl.style.color = 'var(--accent-secondary)';
+            } else if (pendingBets > 0) {
+                const breakEvenEvo = neededForBE / pendingBets;
+                allDOMElements.breakEvenEvoEl.textContent = `${breakEvenEvo.toFixed(2)}x`;
+                allDOMElements.breakEvenEvoEl.style.color = 'var(--text-primary)';
+            } else {
+                allDOMElements.breakEvenEvoEl.textContent = "N/A";
+                allDOMElements.breakEvenEvoEl.style.color = 'var(--text-secondary)';
+            }
+
+            const validSlots = slots.filter(s => s.name && s.bet > 0);
+            allDOMElements.slotCountEl.textContent = validSlots.length;
+
+            if (validSlots.length > 0) {
+                const collectedValidSlots = validSlots.filter(s => s.status === 'collected');
+                const providerCounts = validSlots.reduce((acc, slot) => { if (slot.provider) acc[slot.provider] = (acc[slot.provider] || 0) + 1; return acc; }, {});
+                allDOMElements.mostPlayedProviderEl.textContent = Object.keys(providerCounts).length > 0 ? Object.keys(providerCounts).reduce((a, b) => providerCounts[a] > providerCounts[b] ? a : b) : '-';
+                const providerWinnings = collectedValidSlots.reduce((acc, slot) => { if (slot.provider) acc[slot.provider] = (acc[slot.provider] || 0) + (slot.winnings || 0); return acc; }, {});
+                allDOMElements.biggestWinProviderEl.textContent = Object.keys(providerWinnings).length > 0 ? Object.keys(providerWinnings).reduce((a, b) => providerWinnings[a] > providerWinnings[b] ? a : b) : '-';
+                const bestMultiplierSlot = collectedValidSlots.reduce((max, slot) => (slot.multiplier || 0) > (max.multiplier || 0) ? slot : max, { multiplier: 0 });
+                allDOMElements.bestMultiplierEl.innerHTML = bestMultiplierSlot.multiplier > 0 ? `${bestMultiplierSlot.multiplier.toFixed(2)}x <span class="sub-text">(${bestMultiplierSlot.bet.toFixed(2)}${currencySymbol})</span>` : '-';
+                const bestWinSlot = collectedValidSlots.reduce((max, slot) => (slot.winnings || 0) > (max.winnings || 0) ? slot : max, { winnings: 0 });
+                allDOMElements.bestWinEl.innerHTML = bestWinSlot.winnings > 0 ? `${bestWinSlot.winnings.toFixed(2)} ${currencySymbol} <span class="sub-text">(${bestWinSlot.bet.toFixed(2)}${currencySymbol})</span>` : '-';
+            } else {
+                ['mostPlayedProviderEl', 'biggestWinProviderEl', 'bestMultiplierEl', 'bestWinEl'].forEach(el => allDOMElements[el].innerHTML = '-');
+            }
+            if (shouldSave) saveState();
+        }
+
+        function addSlot(render = true) {
+            slots.push({ name: '', provider: '', bet: null, status: 'pending', winnings: null, multiplier: null, isBounty: false, discordId: '' });
+            if (render) {
+                renderTable();
+                calculateStats();
+            }
+        }
+        
+        function deleteSlot(index) {
+            slots.splice(index, 1);
+            renderTable();
+            calculateStats();
+        }
+
+        // --- Event Listeners ---
+        allDOMElements.homeBtn.addEventListener('click', goHome);
+        allDOMElements.addRowBtn.addEventListener('click', () => addSlot(true));
+        
+        allDOMElements.clearHuntBtn.addEventListener('click', () => {
+            if(confirm('Êtes-vous sûr de vouloir vider la chasse ? Cette action est irréversible pour une chasse partagée.')){
+                if (huntRef && isHost) {
+                    huntRef.remove(); // Deletes from Firebase
+                }
+                goHome(); // Redirect to a clean state
+            }
+        });
+
+        allDOMElements.saveHuntBtn.addEventListener('click', () => { /* ... saveHuntToFile logic ... */ });
+
+        allDOMElements.shareHuntBtn.addEventListener('click', () => {
+            if (!huntRef) {
+                createNewHunt();
+            }
+            allDOMElements.shareModal.classList.add('visible');
+        });
+
+        allDOMElements.closeModalBtn.addEventListener('click', () => allDOMElements.shareModal.classList.remove('visible'));
+        allDOMElements.copyLinkBtn.addEventListener('click', () => {
+            allDOMElements.shareLinkInput.select();
+            document.execCommand('copy');
+            allDOMElements.copyLinkBtn.textContent = 'Copié!';
+            setTimeout(() => { allDOMElements.copyLinkBtn.textContent = 'Copier'; }, 2000);
+        });
+
+        allDOMElements.readOnlyCheck.addEventListener('change', () => {
+            if (huntRef && isHost) {
+                huntRef.child('isReadOnly').set(allDOMElements.readOnlyCheck.checked);
+            }
+        });
+
+        allDOMElements.gameTableBody.addEventListener('input', e => {
+            const target = e.target;
+            const row = target.closest('tr');
+            if (!row) return;
+            const index = parseInt(row.dataset.index, 10);
+            if (isNaN(index) || !slots[index]) return;
+            const slot = slots[index];
+
+            if (target.classList.contains('slot-name')) {
+                slot.name = target.value;
+                currentAlgoliaInput = target;
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(async () => {
+                    if (target.value.length >= 2) {
+                        const data = await fetchAlgoliaSuggestions(target.value);
+                        showAlgoliaDropdown(data.hits);
+                    } else {
+                        allDOMElements.algoliaDropdown.style.display = 'none';
+                    }
+                }, 300);
+                saveState();
+            } else if (target.classList.contains('bet') || target.classList.contains('winnings')) {
+                if (target.classList.contains('bet')) slot.bet = parseFloat(target.value.replace(',', '.')) || null;
+                if (target.classList.contains('winnings')) slot.winnings = parseFloat(target.value.replace(',', '.')) || null;
+                slot.status = (slot.winnings && slot.winnings > 0) ? 'collected' : 'pending';
+                slot.multiplier = (slot.bet > 0 && slot.winnings > 0) ? slot.winnings / slot.bet : null;
+                updateRow(index);
+                calculateStats();
+            } else if (target.classList.contains('discord-id-input')) {
+                slot.discordId = target.value;
+                saveState();
+            }
+        });
+        
+        allDOMElements.gameTableBody.addEventListener('click', e => {
+            const target = e.target.closest('button');
+            if (!target) return;
+            const row = target.closest('tr');
+            if (!row) return;
+            const index = parseInt(row.dataset.index, 10);
+
+            if (target.classList.contains('delete-btn')) {
+                deleteSlot(index);
+            } else if (target.classList.contains('bounty-btn')) {
+                slots[index].isBounty = !slots[index].isBounty;
+                updateRow(index);
+                calculateStats();
+            }
+        });
+
+        allDOMElements.startAmountInput.addEventListener('input', () => calculateStats());
+        allDOMElements.currencySelector.addEventListener('change', () => calculateStats());
+
+        document.addEventListener('click', (e) => {
+            if (allDOMElements.algoliaDropdown.style.display === 'block' && !allDOMElements.algoliaDropdown.contains(e.target) && e.target !== currentAlgoliaInput) {
+                allDOMElements.algoliaDropdown.style.display = 'none';
+            }
+        });
+
+        // --- Algolia Functions ---
+        async function fetchAlgoliaSuggestions(query) {
+            const response = await fetch(ALGOLIA_API_URL, { method: 'POST', headers: ALGOLIA_HEADERS, body: JSON.stringify({ query, hitsPerPage: 20 }) });
+            return await response.json();
+        }
+
+        function showAlgoliaDropdown(hits) {
+            const dropdown = allDOMElements.algoliaDropdown;
+            dropdown.innerHTML = '';
+            if (hits.length === 0) { dropdown.style.display = 'none'; return; }
+
+            const grouped = hits.reduce((acc, hit) => {
+                const provider = (hit.provider && hit.provider.name) || 'Other';
+                if (!acc[provider]) acc[provider] = [];
+                acc[provider].push(hit);
+                return acc;
+            }, {});
+
+            for (const provider in grouped) {
+                const groupEl = document.createElement('div');
+                groupEl.className = 'provider-group';
+                groupEl.innerHTML = `<div class="provider-name">${provider}</div>`;
+                grouped[provider].forEach(hit => {
+                    const itemEl = document.createElement('div');
+                    itemEl.className = 'slot-item';
+                    itemEl.textContent = hit.name;
+                    itemEl.onmousedown = (e) => {
+                        e.preventDefault();
+                        const index = currentAlgoliaInput.closest('tr').dataset.index;
+                        slots[index].name = hit.name;
+                        slots[index].provider = (hit.provider && hit.provider.name) || '';
+                        dropdown.style.display = 'none';
+                        updateRow(index);
+                        calculateStats();
+                    };
+                    groupEl.appendChild(itemEl);
+                });
+                dropdown.appendChild(groupEl);
+            }
+
+            const rect = currentAlgoliaInput.getBoundingClientRect();
+            dropdown.style.left = `${rect.left}px`;
+            dropdown.style.top = `${rect.bottom + 5}px`;
+            dropdown.style.width = `${rect.width}px`;
+            dropdown.style.display = 'block';
+        }
+
+        init();
+    });
+    </script>
+
+</body>
+</html>
